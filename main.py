@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from datetime import date
 from typing import Optional
@@ -7,6 +8,8 @@ from apscheduler.triggers.cron import CronTrigger
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 import db
 import agent
@@ -156,8 +159,23 @@ async def sync_market_data(year: Optional[int] = None, month: Optional[int] = No
     }
 
 
+SPA_DIR = os.path.join(os.path.dirname(__file__), "web", "dist")
+if os.path.isdir(SPA_DIR):
+    app.mount("/assets", StaticFiles(directory=os.path.join(SPA_DIR, "assets")), name="spa_assets")
+
+    @app.middleware("http")
+    async def spa_fallback(request, call_next):
+        response = await call_next(request)
+        if response.status_code == 404 and request.method == "GET":
+            accept = request.headers.get("accept", "")
+            if "text/html" in accept or not request.url.path.startswith("/"):
+                spa_path = os.path.join(SPA_DIR, "index.html")
+                if os.path.isfile(spa_path):
+                    return FileResponse(spa_path, media_type="text/html")
+        return response
+
+
 if __name__ == "__main__":
-    import os
     import uvicorn
     port = int(os.environ.get("PORT", 8190))
     reload = os.environ.get("DEBUG", "").lower() == "true"
