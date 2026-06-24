@@ -1,4 +1,15 @@
 MIGRATIONS = [
+    # 000 — Drop old tables from previous deployments (schema changed from UUID to SERIAL)
+    """
+    DROP TABLE IF EXISTS audit_logs CASCADE;
+    DROP TABLE IF EXISTS generated_reports CASCADE;
+    DROP TABLE IF EXISTS report_templates CASCADE;
+    DROP TABLE IF EXISTS api_keys CASCADE;
+    DROP TABLE IF EXISTS kv_store CASCADE;
+    DROP TABLE IF EXISTS llm_configs CASCADE;
+    DROP TABLE IF EXISTS users CASCADE;
+    DROP TABLE IF EXISTS schema_version CASCADE;
+    """,
     # 001 — Base tables (no foreign key dependencies)
     """
     CREATE TABLE IF NOT EXISTS schema_version (
