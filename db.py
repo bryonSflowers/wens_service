@@ -1,22 +1,8 @@
-"""
-Expected PostgreSQL table schema:
-
-    CREATE TABLE monthly_reports (
-        id          SERIAL PRIMARY KEY,
-        year        INTEGER NOT NULL,
-        month       INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
-        revenue     NUMERIC(15, 2),
-        expenses    NUMERIC(15, 2),
-        net_income  NUMERIC(15, 2),
-        report_data JSONB,          -- any additional structured data
-        notes       TEXT,
-        created_at  TIMESTAMP DEFAULT NOW(),
-        UNIQUE (year, month)
-    );
-"""
+import json
 import os
+from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional
 
 import asyncpg
 
@@ -41,12 +27,18 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-def _row(record: asyncpg.Record) -> dict:
+def _serialize_row(record: asyncpg.Record) -> dict:
     d = dict(record)
     for k, v in d.items():
         if isinstance(v, Decimal):
             d[k] = float(v)
+        elif isinstance(v, (datetime, date)):
+            d[k] = v.isoformat()
     return d
+
+
+def _serialize_rows(rows: list[asyncpg.Record]) -> list[dict]:
+    return [_serialize_row(r) for r in rows]
 
 
 async def list_available_reports(
@@ -62,7 +54,7 @@ async def list_available_reports(
         rows = await pool.fetch(
             "SELECT year, month FROM monthly_reports ORDER BY year DESC, month DESC"
         )
-    return [_row(r) for r in rows]
+    return [_serialize_row(r) for r in rows]
 
 
 async def get_monthly_report(
@@ -75,7 +67,7 @@ async def get_monthly_report(
         year,
         month,
     )
-    return _row(row) if row else None
+    return _serialize_row(row) if row else None
 
 
 async def get_reports_range(
@@ -97,4 +89,55 @@ async def get_reports_range(
         end_year,
         end_month,
     )
-    return [_row(r) for r in rows]
+    return [_serialize_row(r) for r in rows]
+
+
+async def get_paginated(
+    pool: asyncpg.Pool,
+    table: str,
+    columns: str = "*",
+    where: Optional[str] = None,
+    params: Optional[list] = None,
+    order_by: str = "id DESC",
+    page: int = 1,
+    page_size: int = 20,
+) -> dict:
+    offset = (page - 1) * page_size
+    where_clause = f"WHERE {where}" if where else ""
+    if params is None:
+        params = []
+
+    async with pool.acquire() as conn:
+        total = await conn.fetchval(f"SELECT COUNT(*) FROM {table} {where_clause}", *params)
+        idx = len(params)
+        data_sql = (
+            f"SELECT {columns} FROM {table} {where_clause} "
+            f"ORDER BY {order_by} LIMIT ${idx + 1} OFFSET ${idx + 2}"
+        )
+        rows = await conn.fetch(data_sql, *params, page_size, offset)
+
+    return {
+        "items": _serialize_rows(rows),
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, -(-total // page_size)),
+    }
+
+
+async def log_audit(
+    pool: asyncpg.Pool,
+    user_id: Optional[int],
+    action: str,
+    resource_type: str,
+    resource_id: Optional[str] = None,
+    details: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+):
+    await pool.execute(
+        "INSERT INTO audit_logs (user_id, action, resource_type, resource_id, details, ip_address) "
+        "VALUES ($1, $2, $3, $4, $5::jsonb, $6)",
+        user_id, action, resource_type, resource_id,
+        json.dumps(details) if details else None,
+        ip_address,
+    )

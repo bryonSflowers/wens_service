@@ -1,0 +1,56 @@
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuthStore } from './store/auth'
+import { Layout } from './components/layout/Layout'
+import { LoginPage } from './pages/Login'
+import { RegisterPage } from './pages/Register'
+import { DashboardPage } from './pages/Dashboard'
+import { ReportsPage } from './pages/Reports'
+import { GenerateReportPage } from './pages/GenerateReport'
+import { TemplatesPage } from './pages/Templates'
+import { KVStorePage } from './pages/KVStore'
+import { ChatPage } from './pages/Chat'
+import { GeneratedReportsPage } from './pages/GeneratedReports'
+import { AdminPage } from './pages/Admin'
+import { SettingsPage } from './pages/Settings'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+export default function App() {
+  const loadFromStorage = useAuthStore((s) => s.loadFromStorage)
+
+  useEffect(() => {
+    loadFromStorage()
+  }, [])
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/reports/generate" element={<GenerateReportPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
+          <Route path="/kv" element={<KVStorePage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/generated" element={<GeneratedReportsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
