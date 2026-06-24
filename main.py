@@ -97,16 +97,6 @@ app.include_router(admin.router)
 app.include_router(llm_proxy.router)
 
 
-@app.get("/")
-async def root():
-    return {
-        "service": "Wens Financial Report Service",
-        "version": settings.app_version,
-        "docs": "/docs",
-        "health": "/health",
-    }
-
-
 @app.get("/health", response_model=HealthResponse)
 async def health():
     pool = await db.get_pool()
@@ -167,11 +157,13 @@ if os.path.isdir(SPA_DIR):
     async def spa_fallback(request, call_next):
         response = await call_next(request)
         if response.status_code == 404 and request.method == "GET":
-            accept = request.headers.get("accept", "")
-            if "text/html" in accept or not request.url.path.startswith("/"):
-                spa_path = os.path.join(SPA_DIR, "index.html")
-                if os.path.isfile(spa_path):
-                    return FileResponse(spa_path, media_type="text/html")
+            file_path = request.url.path.lstrip("/")
+            full_path = os.path.join(SPA_DIR, file_path)
+            if os.path.isfile(full_path):
+                return FileResponse(full_path)
+            index_path = os.path.join(SPA_DIR, "index.html")
+            if os.path.isfile(index_path):
+                return FileResponse(index_path, media_type="text/html")
         return response
 
 
