@@ -94,6 +94,16 @@ app.include_router(admin.router)
 app.include_router(llm_proxy.router)
 
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Wens Financial Report Service",
+        "version": settings.app_version,
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health", response_model=HealthResponse)
 async def health():
     pool = await db.get_pool()
