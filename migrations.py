@@ -1,14 +1,22 @@
 MIGRATIONS = [
-    # 000 — Drop old tables from previous deployments (schema changed from UUID to SERIAL)
+    # 000 — Drop old tables only if they have the wrong UUID schema
     """
-    DROP TABLE IF EXISTS audit_logs CASCADE;
-    DROP TABLE IF EXISTS generated_reports CASCADE;
-    DROP TABLE IF EXISTS report_templates CASCADE;
-    DROP TABLE IF EXISTS api_keys CASCADE;
-    DROP TABLE IF EXISTS kv_store CASCADE;
-    DROP TABLE IF EXISTS llm_configs CASCADE;
-    DROP TABLE IF EXISTS users CASCADE;
-    DROP TABLE IF EXISTS schema_version CASCADE;
+    DO $$
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='users' AND column_name='id' AND data_type='uuid'
+        ) THEN
+            DROP TABLE IF EXISTS audit_logs CASCADE;
+            DROP TABLE IF EXISTS generated_reports CASCADE;
+            DROP TABLE IF EXISTS report_templates CASCADE;
+            DROP TABLE IF EXISTS api_keys CASCADE;
+            DROP TABLE IF EXISTS kv_store CASCADE;
+            DROP TABLE IF EXISTS llm_configs CASCADE;
+            DROP TABLE IF EXISTS users CASCADE;
+            DROP TABLE IF EXISTS schema_version CASCADE;
+        END IF;
+    END $$;
     """,
     # 001 — Base tables (no foreign key dependencies)
     """
