@@ -16,8 +16,9 @@ export function GenerateReportPage() {
     try {
       const { data } = await reportsApi.generate({ query })
       setReport(data.report)
-    } catch {
-      setError('Failed to generate report. Check the server logs.')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to generate report'
+      setError(msg)
     } finally {
       setLoading(false)
     }
