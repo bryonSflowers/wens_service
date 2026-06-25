@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE || '')
 
 const client = axios.create({
   baseURL: API_BASE,
