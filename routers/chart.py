@@ -48,7 +48,24 @@ async def get_ohlcv(
     start = end - timedelta(days=days)
     rows = await db_service.get_price_history(pool, ticker, start, end)
     if not rows:
-        raise HTTPException(404, f"No cached price data for {ticker}. POST /chart/{ticker}/sync first.")
+        try:
+            loop = asyncio.get_event_loop()
+            tk = __import__("yfinance").Ticker(ticker)
+            hist = await loop.run_in_executor(None, lambda: tk.history(start=start.isoformat(), end=end.isoformat(), interval="1d"))
+            if not hist.empty:
+                for idx, row in hist.iterrows():
+                    dt = idx.date() if hasattr(idx, "date") else idx
+                    await db_service.upsert_price_row(
+                        pool, ticker, dt,
+                        float(row["Open"]), float(row["High"]),
+                        float(row["Low"]), float(row["Close"]),
+                        int(row["Volume"]),
+                    )
+                rows = await db_service.get_price_history(pool, ticker, start, end)
+        except Exception:
+            pass
+    if not rows:
+        raise HTTPException(404, f"No price data available for {ticker}.")
     items = [
         OHLCVItem(
             time=r["date"] if isinstance(r["date"], str) else r["date"].isoformat(),
