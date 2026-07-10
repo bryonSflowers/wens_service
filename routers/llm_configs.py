@@ -2,6 +2,7 @@ import json
 from fastapi import APIRouter, Depends, HTTPException
 
 import db as db_service
+from encryption import encrypt, decrypt
 from schemas.llm_configs import (
     LLMConfigCreate, LLMConfigUpdate, LLMConfigResponse,
 )
@@ -27,7 +28,7 @@ async def create_llm_config(
     current_user: dict = Depends(require_role("admin")),
 ):
     pool = await db_service.get_pool()
-    api_key_encrypted = body.api_key
+    api_key_encrypted = encrypt(body.api_key) if body.api_key else None
     row = await pool.fetchrow(
         "INSERT INTO llm_configs (name, provider, model, base_url, api_key_encrypted, parameters, is_active) "
         "VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7) RETURNING *",
@@ -45,7 +46,10 @@ async def get_llm_config(config_id: int):
     row = await pool.fetchrow("SELECT * FROM llm_configs WHERE id = $1", config_id)
     if not row:
         raise HTTPException(404, "LLM config not found")
-    return db_service._serialize_row(row)
+    result = db_service._serialize_row(row)
+    if result.get("api_key_encrypted"):
+        result["api_key_plaintext"] = decrypt(result["api_key_encrypted"])
+    return result
 
 
 @router.put("/{config_id}", response_model=LLMConfigResponse)
@@ -63,7 +67,7 @@ async def update_llm_config(
     for k, v in body.model_dump(exclude_unset=True).items():
         if v is not None:
             if k == "api_key":
-                fields["api_key_encrypted"] = v
+                fields["api_key_encrypted"] = encrypt(v)
             elif k == "parameters":
                 fields[k] = json.dumps(v) if v else None
             else:

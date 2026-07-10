@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import os
 from typing import Any, AsyncGenerator, Optional
 
@@ -7,6 +9,10 @@ import asyncpg
 from openai import AsyncOpenAI
 
 from tools import TOOL_DEFINITIONS, execute_tool
+
+logger = logging.getLogger(__name__)
+MAX_TOOL_CALLS = 20
+TOOL_TIMEOUT = 120
 
 LLM_BACKEND = os.getenv("LLM_BACKEND", "claude")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
@@ -90,16 +96,25 @@ async def _generate_claude(
     messages: list[dict] = [{"role": "user", "content": query}]
     model = (llm_config or {}).get("model", CLAUDE_MODEL)
 
-    while True:
-        async with client.messages.stream(
-            model=model,
-            max_tokens=16000,
-            thinking={"type": "adaptive"},
-            system=SYSTEM_PROMPT,
-            tools=TOOL_DEFINITIONS,
-            messages=messages,
-        ) as stream:
-            response = await stream.get_final_message()
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            async with client.messages.stream(
+                model=model,
+                max_tokens=16000,
+                thinking={"type": "adaptive"},
+                system=SYSTEM_PROMPT,
+                tools=TOOL_DEFINITIONS,
+                messages=messages,
+            ) as stream:
+                response = await asyncio.wait_for(
+                    stream.get_final_message(),
+                    timeout=TOOL_TIMEOUT,
+                )
+        except asyncio.TimeoutError:
+            logger.error("Claude request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
 
         messages.append({"role": "assistant", "content": response.content})
 
@@ -124,6 +139,7 @@ async def _generate_claude(
 
         messages.append({"role": "user", "content": tool_results})
 
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
     return "Report generation ended unexpectedly.", _metadata(model=model)
 
 
@@ -145,12 +161,21 @@ async def _generate_ollama(
     ]
     tools = _to_openai_tools(TOOL_DEFINITIONS)
 
-    while True:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            tools=tools,
-        )
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    tools=tools,
+                ),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("Ollama request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
 
         choice = response.choices[0]
         msg = choice.message
@@ -190,6 +215,7 @@ async def _generate_ollama(
                 "content": result,
             })
 
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
     return "Report generation ended unexpectedly.", _metadata(model=model)
 
 
@@ -237,8 +263,17 @@ async def chat_completion(
         if temperature is not None:
             kwargs["temperature"] = temperature
 
-        while True:
-            response = await client.chat.completions.create(**kwargs)
+        calls = 0
+        while calls < MAX_TOOL_CALLS:
+            calls += 1
+            try:
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(**kwargs),
+                    timeout=TOOL_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
+                return "The request timed out. Please try again.", _metadata(model=model)
             choice = response.choices[0]
             msg = choice.message
 
@@ -278,7 +313,8 @@ async def chat_completion(
                     "content": result,
                 })
 
-        return "Chat ended unexpectedly.", _metadata(model=model)
+        logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+        return "Chat ended unexpectedly (too many tool calls).", _metadata(model=model)
 
     client = anthropic.AsyncAnthropic()
     model = cfg.get("model", CLAUDE_MODEL)
@@ -293,8 +329,17 @@ async def chat_completion(
     if temperature is not None:
         kwargs["temperature"] = temperature
 
-    while True:
-        response = await client.messages.create(**kwargs)
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.messages.create(**kwargs),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
 
         full_messages.append({"role": "assistant", "content": response.content})
 
@@ -318,6 +363,9 @@ async def chat_completion(
                 })
 
         full_messages.append({"role": "user", "content": tool_results})
+
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+    return "Chat ended unexpectedly (too many tool calls).", _metadata(model=model)
 
 
 async def _run_tool_loop(
@@ -348,8 +396,17 @@ async def _run_tool_loop(
         if temperature is not None:
             kwargs["temperature"] = temperature
 
-        while True:
-            response = await client.chat.completions.create(**kwargs)
+        calls = 0
+        while calls < MAX_TOOL_CALLS:
+            calls += 1
+            try:
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(**kwargs),
+                    timeout=TOOL_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
+                return "The request timed out. Please try again."
             choice = response.choices[0]
             msg = choice.message
 
@@ -384,7 +441,8 @@ async def _run_tool_loop(
                     "content": result,
                 })
 
-        return ""
+        logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+        return "Chat ended unexpectedly (too many tool calls)."
 
     client = anthropic.AsyncAnthropic()
     full_messages = list(messages)
@@ -398,8 +456,17 @@ async def _run_tool_loop(
     if temperature is not None:
         kwargs["temperature"] = temperature
 
-    while True:
-        response = await client.messages.create(**kwargs)
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.messages.create(**kwargs),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again."
 
         full_messages.append({"role": "assistant", "content": response.content})
 
@@ -423,6 +490,9 @@ async def _run_tool_loop(
                 })
 
         full_messages.append({"role": "user", "content": tool_results})
+
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+    return "Chat ended unexpectedly (too many tool calls)."
 
 
 async def chat_completion_stream(

@@ -92,6 +92,23 @@ async def get_reports_range(
     return [_serialize_row(r) for r in rows]
 
 
+ALLOWED_TABLES = {
+    "audit_logs", "generated_reports", "monthly_reports", "report_templates",
+    "users", "api_keys", "kv_store", "llm_configs", "uploaded_docs",
+    "portfolios", "portfolio_holdings", "fundamentals", "price_history",
+    "watchlists", "watchlist_items", "price_alerts",
+}
+
+ALLOWED_COLUMNS = {
+    "id", "user_id", "filename", "file_type", "word_count", "created_at",
+    "year", "month", "revenue", "expenses", "net_income", "report_data", "notes",
+    "*", "h.*",
+}
+
+ALLOWED_ORDER_BY = {"id", "id DESC", "created_at DESC", "year DESC, month DESC",
+                     "ticker", "added_at", "name"}
+
+
 async def get_paginated(
     pool: asyncpg.Pool,
     table: str,
@@ -102,6 +119,15 @@ async def get_paginated(
     page: int = 1,
     page_size: int = 20,
 ) -> dict:
+    if table not in ALLOWED_TABLES:
+        raise ValueError(f"Disallowed table: {table}")
+    cols_list = [c.strip() for c in columns.split(",")]
+    for c in cols_list:
+        if c not in ALLOWED_COLUMNS:
+            raise ValueError(f"Disallowed column: {c}")
+    if order_by not in ALLOWED_ORDER_BY:
+        raise ValueError(f"Disallowed order_by: {order_by}")
+
     offset = (page - 1) * page_size
     where_clause = f"WHERE {where}" if where else ""
     if params is None:
@@ -183,17 +209,20 @@ async def delete_portfolio(pool: asyncpg.Pool, portfolio_id: int, user_id: int) 
 
 
 async def add_holding(pool: asyncpg.Pool, portfolio_id: int, user_id: int, ticker: str, shares: float, avg_cost: float, notes: Optional[str] = None) -> Optional[dict]:
-    row = await pool.fetchrow(
-        "SELECT id FROM portfolios WHERE id = $1 AND user_id = $2", portfolio_id, user_id
-    )
-    if not row:
-        return None
-    r = await pool.fetchrow(
-        "INSERT INTO portfolio_holdings (portfolio_id, ticker, shares, avg_cost, notes) "
-        "VALUES ($1, $2, $3, $4, $5) RETURNING *",
-        portfolio_id, ticker.upper(), shares, avg_cost, notes,
-    )
-    return _serialize_row(r)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id FROM portfolios WHERE id = $1 AND user_id = $2 FOR UPDATE",
+                portfolio_id, user_id,
+            )
+            if not row:
+                return None
+            r = await conn.fetchrow(
+                "INSERT INTO portfolio_holdings (portfolio_id, ticker, shares, avg_cost, notes) "
+                "VALUES ($1, $2, $3, $4, $5) RETURNING *",
+                portfolio_id, ticker.upper(), shares, avg_cost, notes,
+            )
+            return _serialize_row(r)
 
 
 async def list_holdings(pool: asyncpg.Pool, portfolio_id: int, user_id: int) -> list[dict]:
@@ -327,17 +356,20 @@ async def delete_watchlist(pool: asyncpg.Pool, watchlist_id: int, user_id: int) 
 
 
 async def add_watchlist_item(pool: asyncpg.Pool, watchlist_id: int, user_id: int, ticker: str, notes: Optional[str] = None) -> Optional[dict]:
-    row = await pool.fetchrow(
-        "SELECT id FROM watchlists WHERE id = $1 AND user_id = $2", watchlist_id, user_id
-    )
-    if not row:
-        return None
-    r = await pool.fetchrow(
-        "INSERT INTO watchlist_items (watchlist_id, ticker, notes) VALUES ($1, $2, $3) "
-        "ON CONFLICT (watchlist_id, ticker) DO UPDATE SET notes = EXCLUDED.notes RETURNING *",
-        watchlist_id, ticker.upper(), notes,
-    )
-    return _serialize_row(r)
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT id FROM watchlists WHERE id = $1 AND user_id = $2 FOR UPDATE",
+                watchlist_id, user_id,
+            )
+            if not row:
+                return None
+            r = await conn.fetchrow(
+                "INSERT INTO watchlist_items (watchlist_id, ticker, notes) VALUES ($1, $2, $3) "
+                "ON CONFLICT (watchlist_id, ticker) DO UPDATE SET notes = EXCLUDED.notes RETURNING *",
+                watchlist_id, ticker.upper(), notes,
+            )
+            return _serialize_row(r)
 
 
 async def list_watchlist_items(pool: asyncpg.Pool, watchlist_id: int, user_id: int) -> list[dict]:

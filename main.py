@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from datetime import date
 from typing import Optional
@@ -15,7 +17,7 @@ import db
 import agent
 import market_sync
 from config import settings
-from middleware import RateLimitMiddleware
+from middleware import RateLimitMiddleware, RequestIDMiddleware
 from schemas.common import HealthResponse
 from models import ReportRequest, ReportResponse
 
@@ -40,6 +42,13 @@ from routers import (
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
+
 scheduler = AsyncIOScheduler()
 
 
@@ -62,11 +71,15 @@ async def lifespan(app: FastAPI):
     from migrations import MIGRATIONS
     pool = await db.get_pool()
     async with pool.acquire() as conn:
-        for sql in MIGRATIONS:
+        for i, sql in enumerate(MIGRATIONS):
             try:
                 await conn.execute(sql)
             except Exception as e:
-                print(f"Migration note: {e}")
+                if "already exists" in str(e) or "duplicate" in str(e).lower():
+                    logger.info("Migration %d skipped (already applied): %s", i, e)
+                else:
+                    logger.error("Migration %d failed: %s", i, e)
+                    raise
     await db.log_audit(pool, None, "system.startup", "system")
 
     scheduler.add_job(_scheduled_sync, CronTrigger(day=2, hour=9, minute=0))
@@ -84,13 +97,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.debug:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    origins = settings.cors_origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RateLimitMiddleware, max_requests=120, window_seconds=60)
 
 app.include_router(auth.router)
@@ -169,8 +194,6 @@ if os.path.isdir(SPA_DIR):
 
     @app.middleware("http")
     async def spa_fallback(request, call_next):
-        accept = request.headers.get("accept", "")
-        wants_html = "text/html" in accept
         response = await call_next(request)
         if response.status_code == 404 and request.method == "GET":
             file_path = request.url.path.lstrip("/")
@@ -193,5 +216,5 @@ if os.path.isdir(SPA_DIR):
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8190))
-    reload = os.environ.get("DEBUG", "").lower() == "true"
+    reload = settings.debug
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=reload)

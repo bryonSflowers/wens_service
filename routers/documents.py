@@ -70,8 +70,11 @@ async def upload_document(
     if ext not in ALLOWED:
         raise HTTPException(400, f"Unsupported file type '{ext}'. Allowed: {', '.join(ALLOWED)}")
     file_type = ALLOWED[ext]
+    MAX_SIZE = 20 * 1024 * 1024
+    if file.size is not None and file.size > MAX_SIZE:
+        raise HTTPException(400, "File too large (max 20MB)")
     raw = await file.read()
-    if len(raw) > 20 * 1024 * 1024:
+    if len(raw) > MAX_SIZE:
         raise HTTPException(400, "File too large (max 20MB)")
     try:
         if file_type == "excel":

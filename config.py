@@ -19,6 +19,9 @@ class Settings:
     app_name: str = "Wens Financial Report Service"
     app_version: str = "2.0.0"
     debug: bool = field(default_factory=lambda: os.getenv("DEBUG", "false").lower() == "true")
+    cors_origins: list[str] = field(default_factory=lambda: os.getenv("CORS_ORIGINS", "https://wensservice-production.up.railway.app").split(","))
+    encryption_key: str = field(default_factory=lambda: os.getenv("ENCRYPTION_KEY", ""))
+    yfinance_cache_ttl: int = int(os.getenv("YFINANCE_CACHE_TTL", "300"))
 
 
 settings = Settings()
