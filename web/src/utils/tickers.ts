@@ -17,6 +17,7 @@ export const TICKER_SECTORS: Record<string, string> = {
 
 export const TICKER_DATA: TickerInfo[] = [
   { ticker: '3045.TW', name: '台灣大哥大', sector: 'telecom' },
+  { ticker: '4904.TW', name: '遠傳電信', sector: 'telecom' },
   { ticker: '2412.TW', name: '中華電信', sector: 'telecom' },
 
   { ticker: '2330.TW', name: '台積電', sector: 'semiconductor' },
