@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { FileText, Send, Loader2, Copy, Check, Sparkles, Bot } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { FileText, Send, Loader2, Copy, Check, Sparkles, Database, Brain, PenLine } from 'lucide-react'
 import { useT } from '../i18n'
 import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { ReportMarkdown } from '../components/ui/ReportMarkdown'
@@ -20,8 +20,11 @@ export function GenerateReportPage() {
   const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'mathematical'>('standard')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
+  const [progressStep, setProgressStep] = useState(0)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const FORMAT_PROMPTS: Record<string, string> = {
     standard: 'Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations. Use tables where helpful.',
@@ -33,23 +36,54 @@ export function GenerateReportPage() {
   const handleGenerate = async (q?: string) => {
     const text = q || query
     if (!text.trim()) return
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     setError('')
     setReport('')
     try {
       const { data } = await client.post('/reports/generate', {
         query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}`,
-      })
+      }, { signal: controller.signal })
       setReport(data.report || '')
       if (!data.report) setError('Empty response')
     } catch (err: any) {
+      if (err.name === 'CanceledError' || err.name === 'AbortError') return
       const msg = err?.response?.data?.detail || err.message || 'Failed to generate'
       const is502 = err?.response?.status === 502
       setError(is502 ? 'LLM backend unavailable. Check that Ollama is running or ANTHROPIC_API_KEY is set in environment.' : msg)
     } finally {
       setLoading(false)
+      abortRef.current = null
     }
   }
+
+  const handleStop = () => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+    }
+    setLoading(false)
+  }
+
+  const PROGRESS_STEPS = [
+    { icon: Database, label: 'Fetching market data...' },
+    { icon: Brain, label: 'Analyzing financials...' },
+    { icon: PenLine, label: 'Generating insights...' },
+    { icon: Sparkles, label: 'Finalizing report...' },
+  ]
+
+  useEffect(() => {
+    if (loading) {
+      setProgressStep(0)
+      progressTimer.current = setInterval(() => {
+        setProgressStep((s) => (s < PROGRESS_STEPS.length - 1 ? s + 1 : s))
+      }, 4000)
+    } else {
+      if (progressTimer.current) clearInterval(progressTimer.current)
+    }
+    return () => { if (progressTimer.current) clearInterval(progressTimer.current) }
+  }, [loading])
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(report)
@@ -153,14 +187,43 @@ export function GenerateReportPage() {
           </div>
           <div className="card-body max-h-[70vh] overflow-y-auto">
             {loading && !report && (
-              <div className="flex flex-col items-center gap-3 py-16">
-                <Bot className="w-12 h-12 text-blue-400 animate-pulse" />
-                <div className="flex gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex flex-col items-center gap-6 py-12">
+                {/* Progress step indicator */}
+                <div className="w-full max-w-md space-y-4">
+                  {PROGRESS_STEPS.map((step, i) => {
+                    const Icon = step.icon
+                    const isActive = i === progressStep
+                    const isDone = i < progressStep
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-500 ${
+                          isDone ? 'bg-green-500 text-white' :
+                          isActive ? 'bg-blue-500 text-white scale-110' :
+                          'bg-[var(--card-border)] text-[var(--text-tertiary)]'
+                        }`}>
+                          {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium transition-colors ${
+                            isActive ? 'text-[var(--text)]' : isDone ? 'text-green-600 dark:text-green-400' : 'text-[var(--text-tertiary)]'
+                          }`}>{step.label}</p>
+                          {/* Progress bar for active step */}
+                          {isActive && (
+                            <div className="w-full h-1 rounded-full bg-[var(--card-border)] mt-1 overflow-hidden">
+                              <div className="h-full rounded-full bg-blue-500 animate-progress" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <p className="text-sm text-[var(--text-secondary)] animate-pulse">Generating report...</p>
+
+                {/* Stop button */}
+                <button className="btn-danger text-sm flex items-center gap-2" onClick={handleStop}>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Stop Generating
+                </button>
               </div>
             )}
             {report && <ReportMarkdown content={report} />}
