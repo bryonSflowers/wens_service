@@ -233,21 +233,39 @@ async def generate_report(
 
     # Try Ollama
     if provider == "ollama":
+        base = cfg.get("base_url", OLLAMA_BASE_URL)
+        if "localhost" in base and "11434" in base:
+            return (
+                "⚠️ **Ollama not available in this environment.**\n\n"
+                "The Ollama service is configured to run on localhost:11434, which is not accessible "
+                "from this deployment. Set `ANTHROPIC_API_KEY` to use Claude, or change "
+                "`OLLAMA_BASE_URL` to a remote Ollama instance.\n\n"
+                "Falling back to database-generated report.\n\n",
+                {"model": "none", "finish_reason": "config_error"},
+            )
         try:
             return await _generate_ollama(query, pool, cfg, user_id)
         except Exception as e:
             return (f"⚠️ Ollama connection failed: {e}", {"model": "ollama", "finish_reason": "error"})
 
-    # Try Claude
-    try:
-        return await _generate_claude(query, pool, cfg, user_id)
-    except anthropic.NotFoundError:
-        pass  # fall through to offline mode below
-    except Exception as e:
-        err = str(e).lower()
-        if "api key" not in err and "auth" not in err and "unauthorized" not in err:
-            return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
-        # Fall through to offline mode
+    # Try Claude — only if API key is configured
+    api_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
+    if not api_key:
+        logger.info("ANTHROPIC_API_KEY not set — using offline mode")
+    else:
+        try:
+            return await _generate_claude(query, pool, cfg, user_id)
+        except anthropic.NotFoundError:
+            pass  # fall through to offline mode below
+        except asyncio.TimeoutError:
+            logger.error("Claude timed out — falling back to offline mode")
+            pass
+        except Exception as e:
+            err = str(e).lower()
+            if "api key" in err or "auth" in err or "unauthorized" in err:
+                pass  # fall through to offline mode
+            else:
+                return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
 
     # Offline fallback — generate from database data directly
     try:
