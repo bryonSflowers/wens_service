@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Search, BarChart3, Activity, RefreshCw, AlertTriangle } from 'lucide-react'
+import { BarChart3, Activity, RefreshCw, AlertTriangle, GitCompare } from 'lucide-react'
 import client from '../api/client'
+import { CompanySelector } from '../components/ui/CompanySelector'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 
@@ -27,17 +28,16 @@ interface CompareItem {
 }
 
 export function ComparePage() {
-  const [tickerInput, setTickerInput] = useState('3045.TW, 2330.TW')
+  const [selected, setSelected] = useState<string[]>([])
   const [items, setItems] = useState<CompareItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const compare = async () => {
-    const tickers = tickerInput.split(',').map((t) => t.trim()).filter(Boolean)
-    if (tickers.length < 2) { setError('Enter at least 2 tickers'); return }
+    if (selected.length < 2) { setError('Select at least 2 companies'); return }
     setLoading(true); setError('')
     try {
-      const res = await client.get('/compare/full', { params: { tickers: tickers.join(',') } })
+      const res = await client.get('/compare/full', { params: { tickers: selected.join(',') } })
       setItems(res.data.items || [])
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Comparison failed')
@@ -61,18 +61,17 @@ export function ComparePage() {
       </div>
 
       <div className="card">
-        <div className="card-body flex gap-2 flex-wrap">
-          <input className="input max-w-sm" placeholder="3045.TW, 2330.TW, 2412.TW"
-            value={tickerInput} onChange={(e) => setTickerInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && compare()} />
-          <button className="btn-primary" onClick={compare} disabled={loading}>
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            Compare
-          </button>
+        <div className="card-body space-y-4">
+          <CompanySelector selected={selected} onChange={setSelected} />
+          <div className="flex items-center gap-2 pt-2 border-t border-[var(--card-border)]">
+            <button className="btn-primary" onClick={compare} disabled={loading || selected.length < 2}>
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <GitCompare className="w-4 h-4" />}
+              Compare {selected.length} Companies
+            </button>
+            {error && <span className="text-sm text-red-500 flex items-center gap-1"><AlertTriangle className="w-4 h-4" />{error}</span>}
+          </div>
         </div>
       </div>
-
-      {error && <div className="card p-4 text-red-500 flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4" />{error}</div>}
 
       {loading && <PageLoading />}
 
@@ -142,7 +141,7 @@ export function ComparePage() {
       )}
 
       {!loading && items.length === 0 && !error && (
-        <EmptyState title="Enter tickers" description="Enter 2-6 tickers to compare fundamentals and performance side-by-side." icon="chart" />
+        <EmptyState title="Select companies" description="Choose 2–6 companies above to compare fundamentals and performance side-by-side." icon="chart" />
       )}
     </div>
   )
