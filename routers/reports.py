@@ -69,6 +69,8 @@ async def generate_report(
 ):
     pool = await db_service.get_pool()
     user_id = current_user["id"] if current_user else None
+    import logging
+    logger = logging.getLogger(__name__)
     try:
         report_text, metadata = await agent.generate_report(
             query=body.query,
@@ -76,7 +78,11 @@ async def generate_report(
             llm_config_id=body.llm_config_id,
         )
     except Exception as exc:
-        raise HTTPException(500, str(exc))
+        logger.error("Report generation failed: %s", exc, exc_info=True)
+        detail = str(exc)
+        if "connect" in detail.lower() or "refused" in detail.lower():
+            detail = "LLM backend unavailable. Check that Ollama is running or ANTHROPIC_API_KEY is set."
+        raise HTTPException(502, detail=detail)
 
     row = await pool.fetchrow(
         "INSERT INTO generated_reports (user_id, query, report, model, tokens_used, llm_config_id) "

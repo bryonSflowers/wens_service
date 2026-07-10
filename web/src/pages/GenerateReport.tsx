@@ -44,7 +44,8 @@ export function GenerateReportPage() {
       if (!data.report) setError('Empty response')
     } catch (err: any) {
       const msg = err?.response?.data?.detail || err.message || 'Failed to generate'
-      setError(msg)
+      const is502 = err?.response?.status === 502
+      setError(is502 ? 'LLM backend unavailable. Check that Ollama is running or ANTHROPIC_API_KEY is set in environment.' : msg)
     } finally {
       setLoading(false)
     }
