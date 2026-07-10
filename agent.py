@@ -510,28 +510,25 @@ async def chat_completion_stream(
     provider = cfg["provider"]
     model = cfg.get("model", OLLAMA_MODEL if provider == "ollama" else CLAUDE_MODEL)
 
-    full_messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        *messages,
-    ]
-    tools = _to_openai_tools(TOOL_DEFINITIONS) if provider == "ollama" else None
-
-    kwargs: dict = {
-        "model": model,
-        "messages": full_messages,
-        "max_tokens": max_tokens,
-        "stream": True,
-    }
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-    if tools:
-        kwargs["tools"] = tools
-
     if provider == "ollama":
         client = AsyncOpenAI(
             base_url=cfg.get("base_url", OLLAMA_BASE_URL),
             api_key=cfg.get("api_key", "ollama"),
         )
+        full_messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *messages,
+        ]
+        tools = _to_openai_tools(TOOL_DEFINITIONS)
+        kwargs: dict = {
+            "model": model,
+            "messages": full_messages,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "tools": tools,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
         try:
             stream = await client.chat.completions.create(**kwargs)
             async for chunk in stream:
@@ -548,7 +545,9 @@ async def chat_completion_stream(
     client = anthropic.AsyncAnthropic()
     try:
         async with client.messages.stream(
-            **{k: v for k, v in kwargs.items() if k != "stream"},
+            model=model,
+            messages=messages,
+            max_tokens=max_tokens,
             system=SYSTEM_PROMPT,
             tools=TOOL_DEFINITIONS,
         ) as stream:
