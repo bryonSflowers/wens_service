@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { reportsApi, portfolioApi, fundamentalsApi } from '../api/client'
 import { StatCard } from '../components/ui/StatCard'
+import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { AnimatedCounter } from '../components/ui/AnimatedCounter'
 import { ChartTooltip } from '../components/ui/ChartTooltip'
 import { PageSkeleton } from '../components/ui/Skeleton'
@@ -164,14 +165,10 @@ export function DashboardPage() {
         </div>
         <div className="card-body">
           <div className="flex gap-2">
-            <input
-              className="input max-w-xs"
-              placeholder={_('dashboard.tickerPlaceholder')}
-              value={searchTicker}
-              onChange={(e) => setSearchTicker(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <button className="btn btn-primary" onClick={handleSearch} disabled={searchLoading}>
+            <div className="w-44">
+              <TickerDropdown value={searchTicker} onChange={(v) => { setSearchTicker(v); setTimeout(() => handleSearch(), 100) }} />
+            </div>
+            <button className="btn btn-primary h-[38px]" onClick={handleSearch} disabled={searchLoading}>
               {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </button>
           </div>

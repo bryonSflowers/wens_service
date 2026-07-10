@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Activity, TrendingDown, Shield, AlertTriangle, Search, RefreshCw, BarChart3, GitCompare } from 'lucide-react'
+import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { riskApi } from '../api/client'
 import { StatCard } from '../components/ui/StatCard'
 import { TermTooltip } from '../components/ui/TermTooltip'
@@ -34,11 +35,14 @@ export function RiskAnalyticsPage() {
 
       <div className="card">
         <div className="card-body flex gap-2">
-          <input className="input max-w-xs" placeholder={_('risk.tickerPlaceholder')} value={ticker}
-            onChange={(e) => setTicker(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fetchRisk()} />
-          <button className="btn-primary" onClick={fetchRisk} disabled={loading || !ticker.trim()}>
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} {_('risk.analyze')}
-          </button>
+          <div className="flex gap-2 items-end">
+            <div className="w-44">
+              <TickerDropdown value={ticker} onChange={(v) => { setTicker(v); setTimeout(() => fetchRisk(), 100) }} />
+            </div>
+            <button className="btn-primary h-[38px]" onClick={fetchRisk} disabled={loading || !ticker.trim()}>
+              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </div>
 

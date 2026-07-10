@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Search, RefreshCw, Building2, PieChart, BarChart3, Activity, AlertTriangle } from 'lucide-react'
+import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { fundamentalsApi } from '../api/client'
 import { TermTooltip } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
@@ -43,14 +44,17 @@ export function FundamentalsPage() {
 
       <div className="card">
         <div className="card-body flex gap-2 flex-wrap">
-          <input className="input max-w-xs" placeholder={_('fund.tickerPlaceholder')} value={ticker}
-            onChange={(e) => setTicker(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fetchData()} />
-          <button className="btn-primary" onClick={() => fetchData()} disabled={loading || !ticker.trim()}>
+          <div className="w-44">
+            <TickerDropdown value={ticker} onChange={(v) => { setTicker(v); setTimeout(() => fetchData(), 100) }} />
+          </div>
+          <div className="flex gap-2 items-end">
+            <button className="btn-primary h-[38px]" onClick={() => fetchData()} disabled={loading || !ticker.trim()}>
             {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           </button>
-          {data && <button className="btn-secondary" onClick={() => fetchData(true)} disabled={refreshing}>
+          {data && <button className="btn-secondary h-[38px]" onClick={() => fetchData(true)} disabled={refreshing}>
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {_('common.refresh')}
           </button>}
+          </div>
         </div>
       </div>
 
