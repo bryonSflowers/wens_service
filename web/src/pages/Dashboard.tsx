@@ -66,7 +66,7 @@ export function DashboardPage() {
     label: `${r.year}-${String(r.month).padStart(2, '0')}`,
     revenue: r.revenue ?? 0,
     expenses: r.expenses ?? 0,
-    net_income: r.net_income ?? 0,
+    net_income: r.net_income ?? undefined,
   }))
 
   const totalRevenue = reports.reduce((s, r) => s + (r.revenue ?? 0), 0)
@@ -254,6 +254,7 @@ export function DashboardPage() {
                     strokeWidth={2}
                     fill="url(#areaNetIncome)"
                     dot={false}
+                    connectNulls={false}
                     activeDot={{ r: 4, strokeWidth: 0, fill: '#22c55e' }}
                     name="Net Income"
                   />
