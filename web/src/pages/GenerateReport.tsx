@@ -17,10 +17,18 @@ export function GenerateReportPage() {
   const _ = useT()
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
+  const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'mathematical'>('standard')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+
+  const FORMAT_PROMPTS: Record<string, string> = {
+    standard: 'Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations. Use tables where helpful.',
+    summary: 'Write an extremely concise summary under 4 paragraphs. Focus on the most important 3 numbers and what they mean. No tables. No fluff.',
+    visual: 'Structure as a visual infographic-style report using ASCII-like sections. Use bullet points, indentation, and clear visual hierarchy. Include a text-based comparison table. Make it scannable.',
+    mathematical: 'Include quantitative analysis: compute growth rates (MoM, YoY, CAGR), regression trends where applicable, and probability distributions for key metrics. Use statistical language. Show the math in readable notation. Discuss confidence intervals and statistical significance where relevant.',
+  }
 
   const handleGenerate = async (q?: string) => {
     const text = q || query
@@ -30,7 +38,7 @@ export function GenerateReportPage() {
     setReport('')
     try {
       const { data } = await client.post('/reports/generate', {
-        query: `Generate a detailed financial report for ${ticker}. ${text}\n\nUse specific data from the database. Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations.`,
+        query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}`,
       })
       setReport(data.report || '')
       if (!data.report) setError('Empty response')
@@ -77,6 +85,24 @@ export function GenerateReportPage() {
             <button className="btn-primary h-[38px]" onClick={() => handleGenerate()} disabled={loading || !query.trim()}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
+          </div>
+
+          {/* Format selection */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Format:</span>
+            <div className="flex gap-1">
+              {(['standard', 'summary', 'visual', 'mathematical'] as const).map((f) => (
+                <button key={f} onClick={() => setFormat(f)} disabled={loading}
+                  className={`text-[11px] px-3 py-1 rounded-full border transition-all capitalize ${
+                    format === f
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'border-[var(--card-border)] text-[var(--text-secondary)] hover:border-blue-300'
+                  }`}
+                >
+                  {f === 'mathematical' ? 'Math' : f}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Suggested prompts */}
