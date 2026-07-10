@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useT } from '../i18n'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ExternalLink } from 'lucide-react'
+import { Plus, ExternalLink, TrendingUp } from 'lucide-react'
 import { reportsApi } from '../api/client'
 import { DataTable, type Column } from '../components/ui/DataTable'
 import { Pagination } from '../components/ui/Pagination'
@@ -35,11 +35,50 @@ export function ReportsPage() {
   useEffect(() => { fetch(page) }, [page])
 
   const columns: Column<MonthlyReport>[] = [
-    { key: 'year', header: 'Period', render: (r) => `${r.year}-${String(r.month).padStart(2, '0')}` },
-    { key: 'revenue', header: `${_('reports.revenue')} (NT$M)`, render: (r) => r.revenue?.toLocaleString() ?? '-' },
-    { key: 'expenses', header: `${_('reports.expenses')} (NT$M)`, render: (r) => r.expenses?.toLocaleString() ?? '-' },
-    { key: 'net_income', header: `${_('reports.netIncome')} (NT$M)`, render: (r) => r.net_income?.toLocaleString() ?? '-' },
-    { key: 'id', header: '', render: () => <ExternalLink className="w-4 h-4 text-gray-400" />, className: 'w-10' },
+    {
+      key: 'year',
+      header: 'Period',
+      render: (r) => (
+        <span className="font-mono font-semibold text-[var(--text)]">
+          {r.year}-{String(r.month).padStart(2, '0')}
+        </span>
+      ),
+    },
+    {
+      key: 'revenue',
+      header: `${_('reports.revenue')} (NT$M)`,
+      align: 'right',
+      render: (r) => (
+        <span className="font-mono text-[var(--text)]">{r.revenue?.toLocaleString() ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'expenses',
+      header: `${_('reports.expenses')} (NT$M)`,
+      align: 'right',
+      render: (r) => (
+        <span className="font-mono text-[var(--red)]">{r.expenses?.toLocaleString() ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'net_income',
+      header: `${_('reports.netIncome')} (NT$M)`,
+      align: 'right',
+      render: (r) => {
+        const positive = (r.net_income ?? 0) >= 0
+        return (
+          <span className={`font-mono font-semibold ${positive ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+            {positive ? '+' : ''}{r.net_income?.toLocaleString() ?? '—'}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'id',
+      header: '',
+      className: 'w-10',
+      render: () => <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />,
+    },
   ]
 
   if (loading && !data.length) return <PageLoading />
@@ -48,15 +87,22 @@ export function ReportsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{_('reports.title')}</h1>
-          <p className="text-sm text-gray-500 mt-1">Taiwan Mobile financial data</p>
+          <h1 className="page-title">{_('reports.title')}</h1>
+          <p className="page-subtitle">Taiwan Mobile Co. financial data</p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/reports/generate')}>
+        <button className="btn btn-primary" onClick={() => navigate('/reports/generate')}>
           <Plus className="w-4 h-4" /> {_('reports.generate')}
         </button>
       </div>
 
       <div className="card overflow-hidden">
+        <div className="card-header">
+          <h3 className="font-semibold text-sm flex items-center gap-2 text-[var(--text)]">
+            <TrendingUp className="w-4 h-4 text-[var(--accent)]" />
+            Monthly Financials
+          </h3>
+          <span className="badge badge-blue">{total} records</span>
+        </div>
         <DataTable
           columns={columns}
           data={data}
@@ -64,38 +110,42 @@ export function ReportsPage() {
           keyExtractor={(r) => `${r.year}-${r.month}`}
           onRowClick={setSelected}
         />
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-4 border-t border-[var(--card-border)] pt-3">
           <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
         </div>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={`${_('reports.title')}: ${selected?.year}-${String(selected?.month).padStart(2, '0')}`} size="lg">
+      <Modal
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={`${_('reports.title')}: ${selected?.year}-${String(selected?.month).padStart(2, '0')}`}
+        size="lg"
+      >
         {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
-              <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">{_('reports.revenue')}</p>
-                <p className="text-xl font-bold text-blue-600">{selected.revenue?.toLocaleString() ?? '-'}</p>
-              </div>
-              <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">{_('reports.expenses')}</p>
-                <p className="text-xl font-bold text-red-600">{selected.expenses?.toLocaleString() ?? '-'}</p>
-              </div>
-              <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">{_('reports.netIncome')}</p>
-                <p className="text-xl font-bold text-green-600">{selected.net_income?.toLocaleString() ?? '-'}</p>
-              </div>
+              {[
+                { label: _('reports.revenue'),   value: selected.revenue,   color: 'text-[var(--accent)]' },
+                { label: _('reports.expenses'),  value: selected.expenses,  color: 'text-[var(--red)]' },
+                { label: _('reports.netIncome'), value: selected.net_income, color: 'text-[var(--green)]' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="card p-4 text-center">
+                  <p className="text-xs text-[var(--text-secondary)] mb-1">{label}</p>
+                  <p className={`text-xl font-bold font-mono ${color}`}>{value?.toLocaleString() ?? '—'}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-0.5">NT$M</p>
+                </div>
+              ))}
             </div>
             {selected.notes && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Notes</h4>
-                <p className="text-sm text-gray-600">{selected.notes}</p>
+                <h4 className="text-sm font-semibold text-[var(--text)] mb-1">Notes</h4>
+                <p className="text-sm text-[var(--text-secondary)]">{selected.notes}</p>
               </div>
             )}
             {selected.report_data && (
               <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Report Data</h4>
-                <pre className="text-xs bg-gray-50 rounded-lg p-4 overflow-x-auto max-h-64">
+                <h4 className="text-sm font-semibold text-[var(--text)] mb-1">Report Data</h4>
+                <pre className="text-xs bg-[var(--accent-light)] text-[var(--text)] rounded-lg p-4 overflow-x-auto max-h-64">
                   {JSON.stringify(selected.report_data, null, 2)}
                 </pre>
               </div>

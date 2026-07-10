@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { EmptyState } from './EmptyState'
-import { Loading } from './Loading'
+import { TableSkeleton } from './Skeleton'
 
 export interface Column<T> {
   key: string
   header: string
   render?: (item: T) => ReactNode
   className?: string
+  align?: 'left' | 'right' | 'center'
 }
 
 interface DataTableProps<T> {
@@ -20,16 +21,19 @@ interface DataTableProps<T> {
 export function DataTable<T>({
   columns, data, loading, keyExtractor, onRowClick,
 }: DataTableProps<T>) {
-  if (loading) return <Loading />
+  if (loading) return <TableSkeleton rows={8} cols={columns.length} />
   if (!data.length) return <EmptyState />
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200">
+          <tr className="border-b border-[var(--card-border)]">
             {columns.map((col) => (
-              <th key={col.key} className={`text-left px-4 py-3 font-medium text-gray-500 ${col.className || ''}`}>
+              <th
+                key={col.key}
+                className={`px-4 py-3 text-${col.align ?? 'left'} ${col.className ?? ''}`}
+              >
                 {col.header}
               </th>
             ))}
@@ -40,10 +44,15 @@ export function DataTable<T>({
             <tr
               key={keyExtractor(item)}
               onClick={() => onRowClick?.(item)}
-              className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+              className={`border-b border-[var(--card-border)] transition-colors ${
+                onRowClick ? 'cursor-pointer' : ''
+              }`}
             >
               {columns.map((col) => (
-                <td key={col.key} className={`px-4 py-3 ${col.className || ''}`}>
+                <td
+                  key={col.key}
+                  className={`px-4 py-3 text-[var(--text)] text-${col.align ?? 'left'} ${col.className ?? ''}`}
+                >
                   {col.render ? col.render(item) : String((item as Record<string, unknown>)[col.key] ?? '')}
                 </td>
               ))}
