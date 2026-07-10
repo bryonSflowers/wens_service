@@ -207,31 +207,101 @@ async def compare_analyze(
             company_data.append({"ticker": ticker, "error": str(e)})
 
     # Build prompt
-    prompt = "You are a senior equity research analyst. Compare the following companies across these dimensions:\n\n"
+    # Fetch price history + indicators for chart analysis
+    chart_data = {}
+    for ticker in ticker_list:
+        try:
+            import yfinance as yf
+            tk = yf.Ticker(ticker)
+            end = __import__("datetime").date.today()
+            start = end - __import__("datetime").timedelta(days=400)
+            hist = await loop.run_in_executor(None, lambda t=ticker: yf.Ticker(t).history(start=start.isoformat(), end=end.isoformat(), interval="1d"))
+            if hist is not None and not hist.empty:
+                closes = hist["Close"].values.astype(float)
+                highs = hist["High"].values.astype(float)
+                lows = hist["Low"].values.astype(float)
+                volumes = hist["Volume"].values.astype(float)
+                n = len(closes)
+
+                # RSI(14)
+                rsi = None
+                if n > 14:
+                    gains = losses = 0
+                    for j in range(max(1, n - 14), n):
+                        change = closes[j] - closes[j - 1]
+                        if change > 0: gains += change
+                        else: losses -= change
+                    avg_gain, avg_loss = gains / 14, losses / 14
+                    rsi = round(100 - (100 / (1 + avg_gain / avg_loss)), 1) if avg_loss > 0 else 100
+
+                # SMA20/50 cross
+                sma20 = sum(closes[-20:]) / 20 if n >= 20 else None
+                sma50 = sum(closes[-50:]) / 50 if n >= 50 else None
+                sma20_50 = abs(sma20 - sma50) / sma50 * 100 if sma20 and sma50 else None
+
+                # Bollinger
+                bb_mid = sum(closes[-20:]) / 20 if n >= 20 else None
+                bb_std = __import__("numpy").std(closes[-20:], ddof=1) if n >= 20 else None
+                bb_upper = round(bb_mid + 2 * bb_std, 2) if bb_mid and bb_std else None
+                bb_lower = round(bb_mid - 2 * bb_std, 2) if bb_mid and bb_std else None
+
+                # Key levels
+                high_52w = max(closes[-252:]) if n >= 252 else max(closes)
+                low_52w = min(closes[-252:]) if n >= 252 else min(closes)
+                current = closes[-1]
+                from_high = round((current - high_52w) / high_52w * 100, 1)
+                from_low = round((current - low_52w) / low_52w * 100, 1)
+
+                chart_data[ticker] = {
+                    "currentPrice": round(float(current), 2),
+                    "52wHigh": round(float(high_52w), 2),
+                    "52wLow": round(float(low_52w), 2),
+                    "from52wHigh": from_high,
+                    "from52wLow": from_low,
+                    "rsi14": rsi,
+                    "sma20": round(float(sma20), 2) if sma20 else None,
+                    "sma50": round(float(sma50), 2) if sma50 else None,
+                    "sma20_50_cross_pct": round(sma20_50, 2) if sma20_50 else None,
+                    "bbUpper": bb_upper,
+                    "bbLower": bb_lower,
+                    "bbMid": round(float(bb_mid), 2) if bb_mid else None,
+                    "volumeAvg": int(volumes[-20:].mean()) if n >= 20 else None,
+                }
+        except Exception as e:
+            logger.debug("Chart data failed for %s: %s", ticker, e)
+
+    prompt = "You are a senior equity research analyst and technical chartist. Compare the following companies:\n\n"
     for cd in company_data:
         prompt += f"--- {cd.get('name', cd['ticker'])} ({cd['ticker']})\n"
         for k, v in cd.items():
             if k not in ("ticker", "name") and v is not None:
-                if isinstance(v, float):
-                    prompt += f"  {k}: {v:.4f}\n"
-                else:
-                    prompt += f"  {k}: {v}\n"
+                prompt += f"  {k}: {v:.4f}\n" if isinstance(v, float) else f"  {k}: {v}\n"
         prompt += "\n"
 
-    prompt += """Write a **condensed, high-signal comparative analysis** (under 800 words). Be direct — no fluff, no full sentences where a phrase will do.
+    # Add chart data
+    prompt += "\n=== TECHNICAL / CHART DATA ===\n"
+    for ticker, cd in chart_data.items():
+        prompt += f"\n{ticker}\n"
+        for k, v in cd.items():
+            if v is not None:
+                prompt += f"  {k}: {v}\n"
 
-Structure:
-1. **Valuation** — Cheapest to most expensive on P/E and EV/EBITDA. Which premium is justified and which isn't? One sentence each.
-2. **Profitability & Efficiency** — Who earns the most per dollar of revenue / equity / assets? One clear winner, one laggard.
-3. **Growth** — Revenue growth vs. earnings growth. Who is gaining real share vs. cutting costs? Flag decoupling.
-4. **Health & Dividends** — Debt levels, FCF, payout ratio. Can dividends be sustained? Flag the riskiest balance sheet.
-5. **Risk & Position** — One sentence per company on what actually keeps the CEO up at night. No beta — focus on business risk.
-6. **The Mispricing** — What is the market getting wrong about each company? (1 sentence each)
-7. **Catalyst** — One concrete event per company that could move the stock in the next 12 months.
+    prompt += """\nWrite a **two-part comparative analysis**:
 
-End with **one-sentence verdict**: which is best positioned, and why.
+**PART I — FUNDAMENTALS** (concise, under 400 words)
+1. Valuation — Cheapest to most expensive. Which premium is justified?
+2. Profitability & Growth — Who earns best and who is growing fastest? Flag any decoupling.
+3. Health & Risk — Debt, dividends, cash flow. Who is most exposed?
+4. Mispricing — What is the market getting wrong about each? (1 sentence per company)
 
-Use ✅ for strengths, ⚠️ for risks, 📌 for key numbers (just the most important 1-2 per company). No tables. No paragraphs over 3 lines."""
+**PART II — TECHNICAL CHART ANALYSIS** (sophisticated, under 400 words)
+1. **Trend & Momentum** — Is each stock in an uptrend, downtrend, or range? SMA20 vs SMA50 position. RSI regime (overbought >70, oversold <30, or neutral).
+2. **Volatility & Bands** — Bollinger Band width. Is volatility expanding or contracting? Where is price relative to the bands?
+3. **Key Levels** — Proximity to 52-week high/low. Is there a clear support/resistance story?
+4. **Volume & Conviction** — Is the current move backed by volume? Divergence patterns?
+5. **Comparative Setup** — Which has the most attractive risk/reward chart setup RIGHT NOW? Which looks technically vulnerable?
+
+Use ✅ ⚠️ 📌 markers. Be specific: cite RSI values, SMA positions, band touches. No vague 'could go either way.' End with a one-sentence verdict combining both fundamental and technical perspectives."""
 
     try:
         provider = settings.llm_backend
