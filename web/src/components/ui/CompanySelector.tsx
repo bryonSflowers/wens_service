@@ -1,7 +1,7 @@
 import { X, Plus } from 'lucide-react'
 import { TICKER_DATA, getTickerName, TICKER_SECTORS, type TickerInfo } from '../../utils/tickers'
 
-const COMPANY_COLORS: Record<string, string> = {
+export const COMPANY_COLORS: Record<string, string> = {
   '3045.TW': '#2563eb',
   '4904.TW': '#7c3aed',
   '2412.TW': '#059669',
