@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, SlidersHorizontal, RefreshCw } from 'lucide-react'
 import { screenerApi } from '../api/client'
+import { TermTooltip } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -30,9 +31,13 @@ export function ScreenerPage() {
     setLoading(false)
   }
 
-  const Filter = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) => (
-    <div><label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">{label}</label>
-    <input className="input text-sm" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} /></div>
+  const Filter = ({ label, term, value, onChange, placeholder }: { label: string; term?: string; value: string; onChange: (v: string) => void; placeholder?: string }) => (
+    <div>
+      <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">
+        {term ? <TermTooltip term={term}>{label}</TermTooltip> : label}
+      </label>
+      <input className="input text-sm" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
   )
 
   return (
@@ -54,19 +59,19 @@ export function ScreenerPage() {
 
       <div className="card"><div className="card-body">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-          <Filter label={_('scr.peMax')} value={filters.pe_ratio_lt} onChange={(v) => setFilters({ ...filters, pe_ratio_lt: v })} placeholder="15" />
-          <Filter label={_('scr.peMin')} value={filters.pe_ratio_gt} onChange={(v) => setFilters({ ...filters, pe_ratio_gt: v })} placeholder="5" />
-          <Filter label={_('scr.divYieldMin')} value={filters.dividend_yield_gt} onChange={(v) => setFilters({ ...filters, dividend_yield_gt: v })} placeholder="3" />
-          <Filter label={_('scr.mktCapMin')} value={filters.market_cap_gt} onChange={(v) => setFilters({ ...filters, market_cap_gt: v })} placeholder="10" />
+          <Filter label={_('scr.peMax')} term="P/E Ratio" value={filters.pe_ratio_lt} onChange={(v) => setFilters({ ...filters, pe_ratio_lt: v })} placeholder="15" />
+          <Filter label={_('scr.peMin')} term="P/E Ratio" value={filters.pe_ratio_gt} onChange={(v) => setFilters({ ...filters, pe_ratio_gt: v })} placeholder="5" />
+          <Filter label={_('scr.divYieldMin')} term="Div Yield" value={filters.dividend_yield_gt} onChange={(v) => setFilters({ ...filters, dividend_yield_gt: v })} placeholder="3" />
+          <Filter label={_('scr.mktCapMin')} term="Market Cap" value={filters.market_cap_gt} onChange={(v) => setFilters({ ...filters, market_cap_gt: v })} placeholder="10" />
           <div><label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">{_('scr.sector')}</label>
             <select className="input text-sm" value={filters.sector} onChange={(e) => setFilters({ ...filters, sector: e.target.value })}>
               <option value="">{_('scr.allSectors')}</option>{sectors.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <Filter label={_('scr.roeMin')} value={filters.roe_gt} onChange={(v) => setFilters({ ...filters, roe_gt: v })} placeholder="10" />
-          <Filter label={_('scr.epsGrowthMin')} value={filters.eps_growth_gt} onChange={(v) => setFilters({ ...filters, eps_growth_gt: v })} placeholder="5" />
-          <Filter label={_('scr.deMax')} value={filters.debt_to_equity_lt} onChange={(v) => setFilters({ ...filters, debt_to_equity_lt: v })} placeholder="1.5" />
-          <Filter label={_('scr.evEbitdaMax')} value={filters.ev_ebitda_lt} onChange={(v) => setFilters({ ...filters, ev_ebitda_lt: v })} placeholder="10" />
+          <Filter label={_('scr.roeMin')} term="ROE" value={filters.roe_gt} onChange={(v) => setFilters({ ...filters, roe_gt: v })} placeholder="10" />
+          <Filter label={_('scr.epsGrowthMin')} term="EPS Growth" value={filters.eps_growth_gt} onChange={(v) => setFilters({ ...filters, eps_growth_gt: v })} placeholder="5" />
+          <Filter label={_('scr.deMax')} term="Debt-to-Equity" value={filters.debt_to_equity_lt} onChange={(v) => setFilters({ ...filters, debt_to_equity_lt: v })} placeholder="1.5" />
+          <Filter label={_('scr.evEbitdaMax')} term="EV/EBITDA" value={filters.ev_ebitda_lt} onChange={(v) => setFilters({ ...filters, ev_ebitda_lt: v })} placeholder="10" />
           <div><label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">{_('scr.sortBy')}</label>
             <select className="input text-sm" value={filters.sort_by} onChange={(e) => setFilters({ ...filters, sort_by: e.target.value })}>
               <option value="market_cap">{_('fund.marketCap')}</option><option value="pe_ratio">{_('fund.pe')}</option>
@@ -86,14 +91,14 @@ export function ScreenerPage() {
             <table className="w-full text-sm">
               <thead><tr className="border-b border-[var(--card-border)] bg-[var(--sidebar-link-hover)]">
                 <th className="text-left px-3 py-2 font-medium text-[var(--text-secondary)]">{_('portfolio.ticker')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.pe')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.pb')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.evEbitda')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.divYield')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.roe')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.epsGrowth')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.debtToEquity')}</th>
-                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.marketCap')}</th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="P/E Ratio">{_('fund.pe')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="P/B Ratio">{_('fund.pb')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="EV/EBITDA">{_('fund.evEbitda')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="Div Yield">{_('fund.divYield')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="ROE">{_('fund.roe')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="EPS Growth">{_('fund.epsGrowth')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="Debt-to-Equity">{_('fund.debtToEquity')}</TermTooltip></th>
+                <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]"><TermTooltip term="Market Cap">{_('fund.marketCap')}</TermTooltip></th>
                 <th className="text-left px-3 py-2 font-medium text-[var(--text-secondary)]">{_('fund.sector')}</th>
               </tr></thead>
               <tbody>{results.map((r: any, i: number) => (
