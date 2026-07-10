@@ -309,18 +309,33 @@ export function ComparePage() {
 
       {/* AI Scorecard — interactive charts from analysis */}
       {(analysisScores || items.length > 0) && (
-        <div className="card p-6">
-          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">
-            {analysisScores ? 'AI Analyst Scorecard' : 'Comparative Scorecard'}
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Radar chart */}
-            <div className="lg:col-span-2">
+        <div className="space-y-6">
+          {/* HEADER ROW */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[var(--text)]">
+              {analysisScores ? 'AI Analyst Scorecard' : 'Comparative Scorecard'}
+            </h3>
+            {analysisVerdict && (
+              <div className="text-xs text-[var(--text-secondary)] px-3 py-1.5 rounded-full border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-900/20">
+                {analysisVerdict.length > 80 ? analysisVerdict.slice(0, 80) + '...' : analysisVerdict}
+              </div>
+            )}
+          </div>
+
+          {/* TOP ROW: Radar + Rank */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Radar chart - takes 2 cols */}
+            <div className="lg:col-span-2 card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Multi-Dimension Comparison</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">0 = weak · 50 = avg · 100 = strong</span>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={
                   analysisScores && Object.keys(analysisScores).length > 0
                     ? ['valuation','profitability','growth','health','momentum'].map((dim) => {
-                        const p: any = { dim: dim.charAt(0).toUpperCase() + dim.slice(1,4) }
+                        const labels: Record<string,string> = { valuation:'Valuation', profitability:'Profitability', growth:'Growth', health:'Health', momentum:'Momentum' }
+                        const p: any = { dim: labels[dim] || dim }
                         for (const [t, s] of Object.entries(analysisScores)) { p[t] = (s as any)[dim] || 0 }
                         return p
                       })
@@ -341,63 +356,116 @@ export function ComparePage() {
                         })
                       })()
                 }>
-                  <PolarGrid stroke="var(--card-border)" />
-                  <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <PolarGrid gridType="circle" stroke="var(--card-border)" />
+                  <PolarAngleAxis dataKey="dim" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 8, fill: 'var(--text-tertiary)' }} tickCount={5} />
                   {(analysisScores ? Object.keys(analysisScores) : items.map(i => i.ticker)).map((t) => (
                     <Radar key={t} name={t} dataKey={t}
                       stroke={COMPANY_COLORS[t] || '#3b82f6'}
-                      fill={COMPANY_COLORS[t] || '#3b82f6'} fillOpacity={0.08} strokeWidth={2} />
+                      fill={COMPANY_COLORS[t] || '#3b82f6'} fillOpacity={0.06} strokeWidth={2.5} activeDot={{ r: 4 }} />
                   ))}
-                  <Legend />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                  <Tooltip formatter={(value: any) => [`${Math.round(Number(value) || 0)}/100`, 'Score']} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
-            {/* Score bars + sentiment per company */}
-            <div className="space-y-3">
-              {(analysisScores ? Object.keys(analysisScores) : items.map(i => i.ticker)).map((ticker) => {
-                const dims = analysisScores ? ['valuation','profitability','growth','health','momentum'] : ['Val','Prof','Grw','Yld','Size']
-                const dl = analysisScores ? ['Val','Prof','Grw','Hlth','Mom'] : ['Val','Prof','Grw','Yld','Size']
-                const scores = analysisScores ? dims.map(d => (analysisScores[ticker] as any)?.[d] ?? 0) : [50,50,50,50,50]
-                const avg = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length)
+
+            {/* Verdict + key insight */}
+            <div className="card p-4 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">AI Verdict</span>
+                {analysisVerdict ? (
+                  <p className="text-sm leading-relaxed text-[var(--text)] mt-2">{analysisVerdict}</p>
+                ) : (
+                  <p className="text-sm text-[var(--text-secondary)] mt-2 italic">Analysis complete. Scroll down for full breakdown or ask a question in the chat below.</p>
+                )}
+              </div>
+              {analysisScores && (
+                <div className="mt-4 space-y-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Overall Ranking</span>
+                  {Object.entries(analysisScores)
+                    .sort(([,a]: any, [,b]: any) => {
+                      const avgA = (a.valuation + a.profitability + a.growth + a.health + a.momentum) / 5
+                      const avgB = (b.valuation + b.profitability + b.growth + b.health + b.momentum) / 5
+                      return avgB - avgA
+                    })
+                    .map(([ticker, scores]: any, idx) => {
+                      const avg = Math.round((scores.valuation + scores.profitability + scores.growth + scores.health + scores.momentum) / 5)
+                      return (
+                        <div key={ticker} className="flex items-center gap-2">
+                          <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            idx === 0 ? 'bg-yellow-400 text-yellow-900' : idx === 1 ? 'bg-gray-300 text-gray-700' : 'bg-orange-400 text-white'
+                          }`}>{idx + 1}</span>
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COMPANY_COLORS[ticker] }} />
+                          <span className="text-xs font-medium text-[var(--text)] flex-1">{ticker}</span>
+                          <span className="text-xs font-mono font-bold text-[var(--text)]">{avg}</span>
+                        </div>
+                      )
+                    })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* BOTTOM ROW: Per-company detailed scorecards */}
+          {analysisScores && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(analysisScores).map(([ticker, scores]: any) => {
+                const dimEntries = [
+                  { key: 'valuation', label: 'Valuation', desc: 'Price relative to earnings, book value, and cash flow' },
+                  { key: 'profitability', label: 'Profitability', desc: 'Margins, ROE, and return on capital efficiency' },
+                  { key: 'growth', label: 'Growth', desc: 'Revenue and earnings momentum' },
+                  { key: 'health', label: 'Health', desc: 'Balance sheet strength and dividend sustainability' },
+                  { key: 'momentum', label: 'Momentum', desc: 'Price trend, technical setup, and volume conviction' },
+                ]
+                const overall = Math.round((scores.valuation + scores.profitability + scores.growth + scores.health + scores.momentum) / 5)
                 const sent = analysisSentiment[ticker]
                 return (
-                  <div key={ticker} className="p-3 rounded-lg border border-[var(--card-border)]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="w-3 h-3 rounded-full" style={{backgroundColor: COMPANY_COLORS[ticker]}} />
-                      <span className="text-sm font-semibold">{ticker}</span>
+                  <div key={ticker} className="card p-4">
+                    {/* Company header */}
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-[var(--card-border)]">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COMPANY_COLORS[ticker] }} />
+                      <span className="text-sm font-bold text-[var(--text)]">{ticker}</span>
                       {sent && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${
                           sent === 'bullish' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                           sent === 'bearish' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                           'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>{sent}</span>
                       )}
-                      <span className="text-lg font-bold font-mono ml-auto">{avg}</span>
+                      <span className="text-lg font-bold font-mono">{overall}</span>
                     </div>
-                    <div className="w-full h-2.5 rounded-full bg-[var(--card-border)] overflow-hidden flex gap-0.5">
-                      {scores.map((s, i) => (
-                        <div key={i} className="h-full rounded-sm cursor-pointer"
-                          style={{ width: `${Math.max(s / dims.length, 3)}%`, backgroundColor: COMPANY_COLORS[ticker] }}
-                          title={`${dl[i]}: ${s}/100`}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex justify-between mt-1 text-[10px] text-[var(--text-secondary)]">
-                      {dl.map((l, i) => <span key={i}>{l} {Math.round(scores[i])}</span>)}
+                    {/* Dimension gauges */}
+                    <div className="space-y-3">
+                      {dimEntries.map(({ key, label, desc }) => {
+                        const val = scores[key] ?? 0
+                        const rating = val >= 70 ? 'Strong' : val >= 45 ? 'Average' : 'Weak'
+                        return (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-semibold text-[var(--text)]">{label}</span>
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                  val >= 70 ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400' :
+                                  val >= 45 ? 'bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400' :
+                                  'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                }`}>{rating}</span>
+                              </div>
+                              <span className="text-xs font-mono font-bold" style={{ color: COMPANY_COLORS[ticker] }}>{Math.round(val)}</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-[var(--card-border)] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${val}%`, backgroundColor: COMPANY_COLORS[ticker] }} />
+                            </div>
+                            <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{desc}</p>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
               })}
-              {/* Verdict */}
-              {analysisVerdict && (
-                <div className="p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800">
-                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Verdict</span>
-                  <p className="text-sm font-medium text-[var(--text)] mt-1">{analysisVerdict}</p>
-                </div>
-              )}
             </div>
-          </div>
+          )}
         </div>
       )}
 
