@@ -487,6 +487,56 @@ export function ComparePage() {
             </div>
           </div>
 
+          {/* LINE PLOT: Scorecard dimension profiles */}
+          {analysisScores && (
+            <div className="card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Scorecard Dimension Profiles</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">Line = company profile across all 5 dimensions</span>
+              </div>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart
+                  data={['valuation','profitability','growth','health','momentum'].map((dim) => {
+                    const labels: Record<string, string> = { valuation:'Valuation', profitability:'Profitability', growth:'Growth', health:'Health', momentum:'Momentum' }
+                    const p: any = { dim: labels[dim] || dim }
+                    for (const [t, s] of Object.entries(analysisScores)) { p[t] = (s as any)[dim] ?? 0 }
+                    return p
+                  })}
+                  margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" vertical={false} />
+                  <XAxis dataKey="dim" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} width={25} ticks={[0, 25, 50, 75, 100]} />
+                  <Tooltip
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null
+                      return (
+                        <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-xl p-2.5 text-xs">
+                          <p className="font-semibold text-[var(--text)] mb-1.5">{label}</p>
+                          {payload.map((p: any) => (
+                            <div key={p.name} className="flex items-center gap-2 py-0.5">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
+                              <span className="text-[var(--text-secondary)]">{p.name}:</span>
+                              <span className="font-mono font-bold text-[var(--text)]">{Math.round(p.value as number)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }}
+                  />
+                  <Legend iconType="line" wrapperStyle={{ fontSize: 10 }} />
+                  {Object.keys(analysisScores).map((t) => (
+                    <Line key={t} type="monotone" dataKey={t}
+                      stroke={COMPANY_COLORS[t] || '#3b82f6'} strokeWidth={2.5}
+                      dot={{ r: 4, fill: COMPANY_COLORS[t] || '#3b82f6', strokeWidth: 0 }}
+                      activeDot={{ r: 5 }}
+                      name={t} connectNulls={false} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
           {/* BOTTOM ROW: Per-company detailed scorecards */}
           {analysisScores && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
