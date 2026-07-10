@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
+import { getTickerName } from '../../utils/tickers'
 
 interface TickerItem {
   ticker: string
   price: number | null
-  change?: number
 }
 
+const WATCH_TICKERS = ['3045.TW', '0050.TW', '2330.TW']
+
 export function TickerBar() {
-  const [items, setItems] = useState<TickerItem[]>([
-    { ticker: '3045.TW', price: null },
-    { ticker: '0050.TW', price: null },
-    { ticker: '2330.TW', price: null },
-  ])
+  const [items, setItems] = useState<TickerItem[]>(
+    WATCH_TICKERS.map((t) => ({ ticker: t, price: null }))
+  )
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -56,9 +56,10 @@ export function TickerBar() {
     <div className="w-full overflow-hidden bg-slate-900 dark:bg-black border-b border-slate-700 h-10">
       <div className="ticker-track flex items-center h-full px-4">
         {doubled.map((item, i) => (
-          <div key={i} className="flex items-center gap-2 shrink-0 text-xs">
-            <span className="font-semibold text-slate-200">{item.ticker}</span>
-            <span className="font-mono text-slate-300">
+          <div key={i} className="flex items-center gap-3 shrink-0 text-xs">
+            <span className="font-semibold text-slate-100">{getTickerName(item.ticker)}</span>
+            <span className="text-slate-500">{item.ticker.replace('.TW', '')}</span>
+            <span className="font-mono text-slate-300 min-w-[5ch] text-right">
               {item.price != null ? `$${item.price.toFixed(2)}` : '--'}
             </span>
           </div>
