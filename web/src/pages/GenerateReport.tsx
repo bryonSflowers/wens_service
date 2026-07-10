@@ -17,7 +17,8 @@ export function GenerateReportPage() {
   const _ = useT()
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
-  const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'mathematical'>('standard')
+  const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant'>('standard')
+  const [quantPrompt, setQuantPrompt] = useState('Use Monte Carlo simulation and Bayesian inference to analyze return distributions, tail risk, and probability of loss over multiple time horizons. Compute Value at Risk (VaR95/99), Conditional VaR, and stress test scenarios. Present results with confidence intervals and statistical significance levels.')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
   const [progressStep, setProgressStep] = useState(0)
@@ -30,7 +31,7 @@ export function GenerateReportPage() {
     standard: 'Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations. Use tables where helpful.',
     summary: 'Write an extremely concise summary under 4 paragraphs. Focus on the most important 3 numbers and what they mean. No tables. No fluff.',
     visual: 'Structure as a visual infographic-style report using ASCII-like sections. Use bullet points, indentation, and clear visual hierarchy. Include a text-based comparison table. Make it scannable.',
-    mathematical: 'Include quantitative analysis: compute growth rates (MoM, YoY, CAGR), regression trends where applicable, and probability distributions for key metrics. Use statistical language. Show the math in readable notation. Discuss confidence intervals and statistical significance where relevant.',
+    quant: 'Include quantitative analysis: compute growth rates (MoM, YoY, CAGR), regression trends, probability distributions, and statistical tests. Use proper statistical language. Discuss confidence intervals, p-values, and significance levels. Incorporate the user\'s custom quant instructions where specified.',
   }
 
   const handleGenerate = async (q?: string) => {
@@ -42,8 +43,9 @@ export function GenerateReportPage() {
     setError('')
     setReport('')
     try {
+      const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions: ${quantPrompt.trim()}` : ''
       const { data } = await client.post('/reports/generate', {
-        query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}`,
+        query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}`,
       }, { signal: controller.signal })
       setReport(data.report || '')
       if (!data.report) setError('Empty response')
@@ -126,7 +128,7 @@ export function GenerateReportPage() {
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Format:</span>
             <div className="flex gap-1">
-              {(['standard', 'summary', 'visual', 'mathematical'] as const).map((f) => (
+              {(['standard', 'summary', 'visual', 'quant'] as const).map((f) => (
                 <button key={f} onClick={() => setFormat(f)} disabled={loading}
                   className={`text-[11px] px-3 py-1 rounded-full border transition-all capitalize ${
                     format === f
@@ -134,11 +136,28 @@ export function GenerateReportPage() {
                       : 'border-[var(--card-border)] text-[var(--text-secondary)] hover:border-blue-300'
                   }`}
                 >
-                  {f === 'mathematical' ? 'Math' : f}
+                  {f === 'quant' ? 'Quant' : f}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* Custom Quant prompt — only shown for Quant format */}
+          {format === 'quant' && (
+            <div>
+              <label className="label text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+                Custom Quant Instructions <span className="text-[var(--text-tertiary)] font-normal normal-case">(optional — specify your preferred statistical methods)</span>
+              </label>
+              <textarea
+                className="input resize-none"
+                rows={2}
+                placeholder="e.g. Use Bayesian inference, focus on tail risk, compute expected shortfall..."
+                value={quantPrompt}
+                onChange={(e) => setQuantPrompt(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          )}
 
           {/* Suggested prompts */}
           <div className="flex flex-wrap gap-2">
