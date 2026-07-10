@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '../i18n'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ExternalLink } from 'lucide-react'
 import { reportsApi } from '../api/client'
@@ -10,6 +11,7 @@ import type { MonthlyReport } from '../types'
 
 export function ReportsPage() {
   const navigate = useNavigate()
+  const _ = useT()
   const [data, setData] = useState<MonthlyReport[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -34,9 +36,9 @@ export function ReportsPage() {
 
   const columns: Column<MonthlyReport>[] = [
     { key: 'year', header: 'Period', render: (r) => `${r.year}-${String(r.month).padStart(2, '0')}` },
-    { key: 'revenue', header: 'Revenue (NT$M)', render: (r) => r.revenue?.toLocaleString() ?? '-' },
-    { key: 'expenses', header: 'Expenses (NT$M)', render: (r) => r.expenses?.toLocaleString() ?? '-' },
-    { key: 'net_income', header: 'Net Income (NT$M)', render: (r) => r.net_income?.toLocaleString() ?? '-' },
+    { key: 'revenue', header: `${_('reports.revenue')} (NT$M)`, render: (r) => r.revenue?.toLocaleString() ?? '-' },
+    { key: 'expenses', header: `${_('reports.expenses')} (NT$M)`, render: (r) => r.expenses?.toLocaleString() ?? '-' },
+    { key: 'net_income', header: `${_('reports.netIncome')} (NT$M)`, render: (r) => r.net_income?.toLocaleString() ?? '-' },
     { key: 'id', header: '', render: () => <ExternalLink className="w-4 h-4 text-gray-400" />, className: 'w-10' },
   ]
 
@@ -46,11 +48,11 @@ export function ReportsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Monthly Reports</h1>
+          <h1 className="text-2xl font-bold">{_('reports.title')}</h1>
           <p className="text-sm text-gray-500 mt-1">Taiwan Mobile financial data</p>
         </div>
         <button className="btn-primary" onClick={() => navigate('/reports/generate')}>
-          <Plus className="w-4 h-4" /> Generate Report
+          <Plus className="w-4 h-4" /> {_('reports.generate')}
         </button>
       </div>
 
@@ -67,20 +69,20 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={`Report: ${selected?.year}-${String(selected?.month).padStart(2, '0')}`} size="lg">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={`${_('reports.title')}: ${selected?.year}-${String(selected?.month).padStart(2, '0')}`} size="lg">
         {selected && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">Revenue</p>
+                <p className="text-xs text-gray-500">{_('reports.revenue')}</p>
                 <p className="text-xl font-bold text-blue-600">{selected.revenue?.toLocaleString() ?? '-'}</p>
               </div>
               <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">Expenses</p>
+                <p className="text-xs text-gray-500">{_('reports.expenses')}</p>
                 <p className="text-xl font-bold text-red-600">{selected.expenses?.toLocaleString() ?? '-'}</p>
               </div>
               <div className="card p-4 text-center">
-                <p className="text-xs text-gray-500">Net Income</p>
+                <p className="text-xs text-gray-500">{_('reports.netIncome')}</p>
                 <p className="text-xl font-bold text-green-600">{selected.net_income?.toLocaleString() ?? '-'}</p>
               </div>
             </div>

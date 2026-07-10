@@ -5,9 +5,11 @@ import { Pagination } from '../components/ui/Pagination'
 import { Modal } from '../components/ui/Modal'
 import { PageLoading } from '../components/ui/Loading'
 import type { GeneratedReport } from '../types'
+import { useT } from '../i18n'
 import { ExternalLink } from 'lucide-react'
 
 export function GeneratedReportsPage() {
+  const _ = useT()
   const [data, setData] = useState<GeneratedReport[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -35,8 +37,8 @@ export function GeneratedReportsPage() {
     { key: 'query', header: 'Query', render: (r: GeneratedReport) => (
       <span className="truncate block max-w-[400px]">{r.query}</span>
     )},
-    { key: 'model', header: 'Model', render: (r: GeneratedReport) => r.model || '-' },
-    { key: 'tokens_used', header: 'Tokens', render: (r: GeneratedReport) => r.tokens_used ?? '-' },
+    { key: 'model', header: _('generated.model'), render: (r: GeneratedReport) => r.model || '-' },
+    { key: 'tokens_used', header: _('generated.tokens'), render: (r: GeneratedReport) => r.tokens_used ?? '-' },
     { key: 'created_at', header: 'Date', render: (r: GeneratedReport) => new Date(r.created_at).toLocaleDateString() },
     { key: 'id2', header: '', render: () => <ExternalLink className="w-4 h-4 text-gray-400" />, className: 'w-10' },
   ]
@@ -46,7 +48,7 @@ export function GeneratedReportsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Generated Reports</h1>
+        <h1 className="text-2xl font-bold">{_('generated.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">History of LLM-generated financial reports</p>
       </div>
 
@@ -63,12 +65,12 @@ export function GeneratedReportsPage() {
         </div>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="Generated Report" size="xl">
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={_('generated.title')} size="xl">
         {selected && (
           <div className="space-y-4">
             <div className="flex gap-4 text-sm text-gray-500">
-              <span>Model: {selected.model || 'N/A'}</span>
-              <span>Tokens: {selected.tokens_used ?? 'N/A'}</span>
+              <span>{_('generated.model')}: {selected.model || 'N/A'}</span>
+              <span>{_('generated.tokens')}: {selected.tokens_used ?? 'N/A'}</span>
               <span>Date: {new Date(selected.created_at).toLocaleString()}</span>
             </div>
             <div>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { reportsApi } from '../api/client'
 import { FileText, Send, Loader2 } from 'lucide-react'
+import { useT } from '../i18n'
 
 export function GenerateReportPage() {
+  const _ = useT()
   const [query, setQuery] = useState('')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,7 +29,7 @@ export function GenerateReportPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Generate Report</h1>
+        <h1 className="text-2xl font-bold">{_('reports.generate')}</h1>
         <p className="text-sm text-gray-500 mt-1">Use natural language to create financial reports via LLM</p>
       </div>
 
@@ -43,7 +45,7 @@ export function GenerateReportPage() {
           />
           <button className="btn-primary" onClick={handleGenerate} disabled={loading || !query.trim()}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {loading ? 'Generating...' : 'Generate'}
+            {loading ? 'Generating...' : _('reports.generate')}
           </button>
         </div>
       </div>
@@ -59,7 +61,7 @@ export function GenerateReportPage() {
           <div className="card-header">
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5 text-blue-600" />
-              <span className="font-semibold">Generated Report</span>
+              <span className="font-semibold">{_('generated.title')}</span>
             </div>
           </div>
           <div className="card-body">

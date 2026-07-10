@@ -6,9 +6,11 @@ import { Pagination } from '../components/ui/Pagination'
 import { Modal } from '../components/ui/Modal'
 import { PageLoading } from '../components/ui/Loading'
 import { Plus, Trash2, Shield, Users, Database, Cpu } from 'lucide-react'
+import { useT } from '../i18n'
 import type { AdminStats, AuditLog, LLMConfig } from '../types'
 
 export function AdminPage() {
+  const _ = useT()
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [logPage, setLogPage] = useState(1)
@@ -47,7 +49,7 @@ export function AdminPage() {
   }
 
   const handleDeleteLlm = async (id: number) => {
-    if (!confirm('Delete this LLM config?')) return
+    if (!confirm(`${_('common.delete')} this LLM config?`)) return
     await llmConfigsApi.delete(id)
     const { data } = await llmConfigsApi.list()
     setLlmConfigs(data.items)
@@ -65,8 +67,8 @@ export function AdminPage() {
   const llmColumns: Column<LLMConfig>[] = [
     { key: 'name', header: 'Name', render: (c) => <span className="font-medium">{c.name}</span> },
     { key: 'provider', header: 'Provider', render: (c) => <span className="badge-blue">{c.provider}</span> },
-    { key: 'model', header: 'Model' },
-    { key: 'is_active', header: 'Status', render: (c) => c.is_active ? <span className="badge-green">Active</span> : <span className="badge-red">Inactive</span> },
+    { key: 'model', header: _('generated.model') },
+    { key: 'is_active', header: _('common.status'), render: (c) => c.is_active ? <span className="badge-green">{_('common.active')}</span> : <span className="badge-red">{_('common.inactive')}</span> },
     { key: 'id', header: '', render: (c) => (
       <button className="btn-ghost p-1 text-red-500" onClick={() => handleDeleteLlm(c.id)}><Trash2 className="w-4 h-4" /></button>
     ), className: 'w-10' },
@@ -75,16 +77,16 @@ export function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <h1 className="text-2xl font-bold">{_('admin.title')}</h1>
         <p className="text-sm text-gray-500 mt-1">System administration and monitoring</p>
       </div>
 
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <StatCard label="Total Users" value={stats.users} icon={Users} />
-          <StatCard label="Monthly Reports" value={stats.monthly_reports} icon={Database} />
+          <StatCard label={_('admin.users')} value={stats.users} icon={Users} />
+          <StatCard label={_('reports.title')} value={stats.monthly_reports} icon={Database} />
           <StatCard label="KV Items" value={stats.kv_store_items} icon={Database} />
-          <StatCard label="LLM Configs" value={stats.llm_configs} icon={Cpu} />
+          <StatCard label={_('admin.llmConfigs')} value={stats.llm_configs} icon={Cpu} />
         </div>
       )}
 
@@ -92,10 +94,10 @@ export function AdminPage() {
         <div className="card-header">
           <div className="flex items-center gap-2">
             <Cpu className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold">LLM Configurations</span>
+            <span className="font-semibold">{_('admin.llmConfigs')}</span>
           </div>
           <button className="btn-primary text-sm" onClick={() => setShowLlmModal(true)}>
-            <Plus className="w-4 h-4" /> Add
+            <Plus className="w-4 h-4" /> {_('common.create')}
           </button>
         </div>
         <div className="card-body">
@@ -107,7 +109,7 @@ export function AdminPage() {
         <div className="card-header">
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-gray-500" />
-            <span className="font-semibold">Audit Logs</span>
+            <span className="font-semibold">{_('admin.auditLogs')}</span>
           </div>
         </div>
         <div className="card-body">
@@ -116,7 +118,7 @@ export function AdminPage() {
         </div>
       </div>
 
-      <Modal open={showLlmModal} onClose={() => setShowLlmModal(false)} title="Add LLM Configuration">
+      <Modal open={showLlmModal} onClose={() => setShowLlmModal(false)} title={`${_('common.create')} LLM Configuration`}>
         <div className="space-y-4">
           <div>
             <label className="label">Name</label>
@@ -131,7 +133,7 @@ export function AdminPage() {
             </select>
           </div>
           <div>
-            <label className="label">Model</label>
+            <label className="label">{_('generated.model')}</label>
             <input className="input" value={llmForm.model} onChange={(e) => setLlmForm({ ...llmForm, model: e.target.value })} placeholder="qwen2.5:7b" />
           </div>
           <div>
@@ -143,8 +145,8 @@ export function AdminPage() {
             <input className="input" type="password" value={llmForm.api_key} onChange={(e) => setLlmForm({ ...llmForm, api_key: e.target.value })} />
           </div>
           <div className="flex justify-end gap-2">
-            <button className="btn-secondary" onClick={() => setShowLlmModal(false)}>Cancel</button>
-            <button className="btn-primary" onClick={handleCreateLlm}>Save</button>
+            <button className="btn-secondary" onClick={() => setShowLlmModal(false)}>{_('common.cancel')}</button>
+            <button className="btn-primary" onClick={handleCreateLlm}>{_('common.save')}</button>
           </div>
         </div>
       </Modal>

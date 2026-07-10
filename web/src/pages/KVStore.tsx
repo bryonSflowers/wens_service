@@ -4,9 +4,11 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { Pagination } from '../components/ui/Pagination'
 import { Modal } from '../components/ui/Modal'
 import { Plus, Trash2, Eye } from 'lucide-react'
+import { useT } from '../i18n'
 import type { KVItem } from '../types'
 
 export function KVStorePage() {
+  const _ = useT()
   const [namespace, setNamespace] = useState('default')
   const [data, setData] = useState<KVItem[]>([])
   const [page, setPage] = useState(1)
@@ -55,18 +57,18 @@ export function KVStorePage() {
   }
 
   const handleDelete = async (item: KVItem) => {
-    if (!confirm(`Delete ${item.key}?`)) return
+    if (!confirm(`${_('common.delete')} ${item.key}?`)) return
     await kvApi.delete(namespace, item.key)
     fetch(page)
   }
 
   const columns: Column<KVItem>[] = [
-    { key: 'key', header: 'Key', render: (i) => <span className="font-mono text-sm font-medium">{i.key}</span> },
-    { key: 'value', header: 'Value', render: (i) => {
+    { key: 'key', header: _('kv.key'), render: (i) => <span className="font-mono text-sm font-medium">{i.key}</span> },
+    { key: 'value', header: _('kv.value'), render: (i) => {
       const v = typeof i.value === 'string' ? i.value : JSON.stringify(i.value)
       return <span className="text-sm text-gray-600 truncate block max-w-[300px]">{v}</span>
     }},
-    { key: 'tags', header: 'Tags', render: (i) => i.tags?.map((t) => <span key={t} className="badge-blue mr-1">{t}</span>) },
+    { key: 'tags', header: _('kv.tags'), render: (i) => i.tags?.map((t) => <span key={t} className="badge-blue mr-1">{t}</span>) },
     { key: 'id', header: '', render: (i) => (
       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
         <button className="btn-ghost p-1" onClick={() => setViewItem(i)}><Eye className="w-4 h-4" /></button>
@@ -79,17 +81,17 @@ export function KVStorePage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">KV Store</h1>
+          <h1 className="text-2xl font-bold">{_('kv.title')}</h1>
           <p className="text-sm text-gray-500 mt-1">Multi-purpose namespaced key-value storage</p>
         </div>
         <div className="flex gap-2">
           <input
             className="input w-48"
-            placeholder="Namespace"
+            placeholder={_('kv.namespace')}
             value={namespace}
             onChange={(e) => setNamespace(e.target.value || 'default')}
           />
-          <button className="btn-primary" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" /> Add</button>
+          <button className="btn-primary" onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" /> {_('common.create')}</button>
         </div>
       </div>
 
@@ -100,39 +102,39 @@ export function KVStorePage() {
         </div>
       </div>
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New KV Item" size="md">
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={`${_('common.create')} KV Item`} size="md">
         <div className="space-y-4">
           <div>
-            <label className="label">Key</label>
+            <label className="label">{_('kv.key')}</label>
             <input className="input font-mono" value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="my.key.name" />
           </div>
           <div>
-            <label className="label">Value (JSON or text)</label>
+            <label className="label">{_('kv.value')}</label>
             <textarea className="input min-h-[100px] font-mono text-xs" value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder='{"hello": "world"}' />
           </div>
           <div>
-            <label className="label">Tags (comma-separated)</label>
+            <label className="label">{_('kv.tags')}</label>
             <input className="input" value={newTags} onChange={(e) => setNewTags(e.target.value)} placeholder="tag1, tag2" />
           </div>
           <div className="flex justify-end gap-2">
-            <button className="btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
-            <button className="btn-primary" onClick={handleCreate}>Create</button>
+            <button className="btn-secondary" onClick={() => setShowCreate(false)}>{_('common.cancel')}</button>
+            <button className="btn-primary" onClick={handleCreate}>{_('common.create')}</button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!viewItem} onClose={() => setViewItem(null)} title={`KV: ${viewItem?.key}`} size="lg">
+      <Modal open={!!viewItem} onClose={() => setViewItem(null)} title={`${_('kv.title')}: ${viewItem?.key}`} size="lg">
         {viewItem && (
           <div className="space-y-4">
             <div>
-              <label className="label">Value</label>
+              <label className="label">{_('kv.value')}</label>
               <pre className="bg-gray-50 rounded-lg p-4 text-xs overflow-x-auto max-h-96">
                 {JSON.stringify(viewItem.value, null, 2)}
               </pre>
             </div>
             {viewItem.tags && viewItem.tags.length > 0 && (
               <div>
-                <label className="label">Tags</label>
+                <label className="label">{_('kv.tags')}</label>
                 <div className="flex gap-1">{viewItem.tags.map((t) => <span key={t} className="badge-blue">{t}</span>)}</div>
               </div>
             )}
