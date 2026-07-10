@@ -169,6 +169,8 @@ if os.path.isdir(SPA_DIR):
 
     @app.middleware("http")
     async def spa_fallback(request, call_next):
+        accept = request.headers.get("accept", "")
+        wants_html = "text/html" in accept
         response = await call_next(request)
         if response.status_code == 404 and request.method == "GET":
             file_path = request.url.path.lstrip("/")
@@ -179,6 +181,13 @@ if os.path.isdir(SPA_DIR):
             if os.path.isfile(index_path):
                 return FileResponse(index_path, media_type="text/html")
         return response
+
+    @app.get("/")
+    async def serve_spa():
+        index_path = os.path.join(SPA_DIR, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path, media_type="text/html")
+        return {"error": "SPA not built"}
 
 
 if __name__ == "__main__":

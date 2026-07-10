@@ -23,7 +23,7 @@ const analyticsNavItems = [
 
 const dataNavItems = [
   { to: '/reports', icon: FileText, label: 'sidebar.reportsPage', exact: true },
-  { to: '/reports/generate', icon: FileInput, label: 'sidebar.generate' },
+  { to: '/reports/generate', icon: FileInput, label: 'sidebar.generate', exact: true },
   { to: '/templates', icon: FileStack, label: 'sidebar.templates' },
   { to: '/generated', icon: FileText, label: 'sidebar.generated' },
   { to: '/chat', icon: MessageSquare, label: 'sidebar.chat' },
