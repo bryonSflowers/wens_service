@@ -20,6 +20,7 @@ import { WatchlistPage } from './pages/WatchlistPage'
 import { ScreenerPage } from './pages/Screener'
 import { DocumentsPage } from './pages/Documents'
 import { ComparePage } from './pages/ComparePage'
+import { FinancialDashboardPage } from './pages/FinancialDashboard'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/chart" element={<MarketChartPage />} />
           <Route path="/screener" element={<ScreenerPage />} />
           <Route path="/compare" element={<ComparePage />} />
+          <Route path="/financials" element={<FinancialDashboardPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/generate" element={<GenerateReportPage />} />

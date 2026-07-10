@@ -20,6 +20,7 @@ const analyticsNavItems = [
   { to: '/chart', icon: TrendingUp, label: 'sidebar.chart' },
   { to: '/screener', icon: Search, label: 'sidebar.screener' },
   { to: '/compare', icon: GitCompare, label: 'Compare' },
+  { to: '/financials', icon: BarChart3, label: 'Financials' },
 ]
 
 const dataNavItems = [
