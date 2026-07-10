@@ -13,6 +13,12 @@ import { ChatPage } from './pages/Chat'
 import { GeneratedReportsPage } from './pages/GeneratedReports'
 import { AdminPage } from './pages/Admin'
 import { SettingsPage } from './pages/Settings'
+import { PortfolioPage } from './pages/Portfolio'
+import { RiskAnalyticsPage } from './pages/RiskAnalytics'
+import { FundamentalsPage } from './pages/Fundamentals'
+import { MarketChartPage } from './pages/MarketChart'
+import { WatchlistPage } from './pages/WatchlistPage'
+import { ScreenerPage } from './pages/Screener'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -40,6 +46,12 @@ export default function App() {
           }
         >
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/watchlist" element={<WatchlistPage />} />
+          <Route path="/risk" element={<RiskAnalyticsPage />} />
+          <Route path="/fundamentals" element={<FundamentalsPage />} />
+          <Route path="/chart" element={<MarketChartPage />} />
+          <Route path="/screener" element={<ScreenerPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/generate" element={<GenerateReportPage />} />
           <Route path="/templates" element={<TemplatesPage />} />

@@ -121,10 +121,8 @@ export const llmConfigsApi = {
 
 // ===== Chat API =====
 export const chatApi = {
-  send: (body: ChatRequest) => client.post('/llm/chat', body),
+  send: (body: import('../types').ChatRequest) => client.post('/llm/chat', body),
 }
-
-import type { ChatRequest } from '../types'
 
 // ===== Generated Reports API =====
 export const generatedReportsApi = {
@@ -148,4 +146,82 @@ export const adminApi = {
   stats: () => client.get('/admin/stats'),
   auditLogs: (params?: { page?: number; page_size?: number }) =>
     client.get('/admin/audit-logs', { params }),
+}
+
+// ===== Portfolio API =====
+export const portfolioApi = {
+  list: () => client.get('/portfolios'),
+  create: (body: { name: string; description?: string }) => client.post('/portfolios', body),
+  get: (id: number) => client.get(`/portfolios/${id}`),
+  update: (id: number, body: { name: string; description?: string }) => client.put(`/portfolios/${id}`, body),
+  delete: (id: number) => client.delete(`/portfolios/${id}`),
+  listHoldings: (id: number) => client.get(`/portfolios/${id}/holdings`),
+  addHolding: (id: number, body: { ticker: string; shares: number; avg_cost: number; notes?: string }) =>
+    client.post(`/portfolios/${id}/holdings`, body),
+  updateHolding: (portfolioId: number, holdingId: number, body: { shares: number; avg_cost: number; notes?: string }) =>
+    client.put(`/portfolios/${portfolioId}/holdings/${holdingId}`, body),
+  deleteHolding: (portfolioId: number, holdingId: number) =>
+    client.delete(`/portfolios/${portfolioId}/holdings/${holdingId}`),
+  summary: (id: number) => client.get(`/portfolios/${id}/summary`),
+}
+
+// ===== Risk API =====
+export const riskApi = {
+  volatility: (ticker: string, days?: number) => client.get(`/risk/${ticker}/volatility`, { params: { days } }),
+  sharpe: (ticker: string, riskFreeRate?: number, days?: number) =>
+    client.get(`/risk/${ticker}/sharpe`, { params: { risk_free_rate: riskFreeRate, days } }),
+  maxDrawdown: (ticker: string, days?: number) => client.get(`/risk/${ticker}/max-drawdown`, { params: { days } }),
+  var: (ticker: string, confidence?: number, days?: number) =>
+    client.get(`/risk/${ticker}/var`, { params: { confidence, days } }),
+  beta: (ticker: string, index?: string, days?: number) =>
+    client.get(`/risk/${ticker}/beta`, { params: { index_ticker: index, days } }),
+  all: (ticker: string, index?: string, riskFreeRate?: number, days?: number) =>
+    client.get(`/risk/${ticker}/all`, { params: { index_ticker: index, risk_free_rate: riskFreeRate, days } }),
+}
+
+// ===== Fundamentals API =====
+export const fundamentalsApi = {
+  get: (ticker: string) => client.get(`/fundamentals/${ticker}`),
+  refresh: (ticker: string) => client.post(`/fundamentals/${ticker}/refresh`),
+}
+
+// ===== Chart API =====
+export const chartApi = {
+  sync: (ticker: string, period?: string) => client.post(`/chart/${ticker}/sync`, null, { params: { period } }),
+  ohlcv: (ticker: string, days?: number) => client.get(`/chart/${ticker}/ohlcv`, { params: { days } }),
+  ma: (ticker: string, windows?: string, days?: number) =>
+    client.get(`/chart/${ticker}/ma`, { params: { windows, days } }),
+  volumeProfile: (ticker: string, bins?: number, days?: number) =>
+    client.get(`/chart/${ticker}/volume-profile`, { params: { bins, days } }),
+}
+
+// ===== Watchlist API =====
+export const watchlistApi = {
+  list: () => client.get('/watchlists'),
+  create: (body: { name: string; description?: string }) => client.post('/watchlists', body),
+  get: (id: number) => client.get(`/watchlists/${id}`),
+  update: (id: number, body: { name: string; description?: string }) => client.put(`/watchlists/${id}`, body),
+  delete: (id: number) => client.delete(`/watchlists/${id}`),
+  listItems: (id: number) => client.get(`/watchlists/${id}/items`),
+  addItem: (id: number, ticker: string, notes?: string) =>
+    client.post(`/watchlists/${id}/items`, null, { params: { ticker, notes } }),
+  removeItem: (watchlistId: number, itemId: number) =>
+    client.delete(`/watchlists/${watchlistId}/items/${itemId}`),
+}
+
+// ===== Price Alerts API =====
+export const alertsApi = {
+  list: (ticker?: string) => client.get('/watchlists/alerts', { params: { ticker } }),
+  create: (body: { ticker: string; alert_type: string; threshold_price: number; delivery_method?: string }) =>
+    client.post('/watchlists/alerts', body),
+  delete: (id: number) => client.delete(`/watchlists/alerts/${id}`),
+  check: (ticker?: string) => client.post('/watchlists/alerts/check', null, { params: { ticker } }),
+}
+
+// ===== Screener API =====
+export const screenerApi = {
+  screen: (params: Record<string, string | number | undefined>) =>
+    client.get('/screener', { params }),
+  sectors: () => client.get('/screener/sectors'),
+  industries: (sector?: string) => client.get('/screener/industries', { params: { sector } }),
 }

@@ -14,6 +14,15 @@ body {
   width: var(--sidebar-w);
 }
 
+.content-area {
+  margin-left: var(--sidebar-w);
+  transition: margin-left 0.2s;
+}
+
+.sidebar.collapsed {
+  --sidebar-w: 64px;
+}
+
 .sidebar-link {
   display: flex;
   align-items: center;

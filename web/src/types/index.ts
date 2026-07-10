@@ -136,6 +136,190 @@ export interface ChatResponse {
   tokens_used: number | null
 }
 
+// ===== Portfolio =====
+export interface Portfolio {
+  id: number
+  user_id: number
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Holding {
+  id: number
+  portfolio_id: number
+  ticker: string
+  shares: number
+  avg_cost: number
+  current_price: number | null
+  current_value: number | null
+  unrealized_pnl: number | null
+  unrealized_pnl_pct: number | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PortfolioSummary {
+  id: number
+  name: string
+  total_cost: number
+  total_value: number
+  total_unrealized_pnl: number
+  total_unrealized_pnl_pct: number
+  holding_count: number
+}
+
+// ===== Risk =====
+export interface VolatilityMetric {
+  ticker: string
+  days: number
+  annualized_volatility_pct: number
+}
+
+export interface SharpeMetric {
+  ticker: string
+  sharpe_ratio: number
+  risk_free_rate_pct: number
+  annualized_return_pct: number
+  annualized_volatility_pct: number
+}
+
+export interface MaxDrawdownMetric {
+  ticker: string
+  max_drawdown_pct: number
+  peak_date: string | null
+  trough_date: string | null
+}
+
+export interface VaRMetric {
+  ticker: string
+  confidence: number
+  var_daily_pct: number
+  var_weekly_pct: number
+  var_monthly_pct: number
+}
+
+export interface BetaMetric {
+  ticker: string
+  index_ticker: string
+  beta: number
+  correlation: number
+}
+
+export interface RiskAll {
+  ticker: string
+  annualized_volatility_pct: number | null
+  sharpe_ratio: number | null
+  max_drawdown_pct: number | null
+  var_95_daily_pct: number | null
+  beta_vs_index: number | null
+  index_ticker: string | null
+}
+
+// ===== Fundamentals =====
+export interface Fundamental {
+  ticker: string
+  pe_ratio: number | null
+  pb_ratio: number | null
+  ev_ebitda: number | null
+  roe: number | null
+  debt_to_equity: number | null
+  eps: number | null
+  eps_growth_pct: number | null
+  dividend_yield: number | null
+  dividend_payout_ratio: number | null
+  market_cap: number | null
+  sector: string | null
+  industry: string | null
+  updated_at: string | null
+}
+
+// ===== Chart =====
+export interface OHLCVItem {
+  time: string
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export interface OHLCVResponse {
+  ticker: string
+  interval: string
+  items: OHLCVItem[]
+}
+
+export interface MAItem {
+  time: string
+  value: number
+}
+
+export interface MAResponse {
+  ticker: string
+  window: number
+  items: MAItem[]
+}
+
+export interface VolumeProfileItem {
+  price: number
+  volume: number
+}
+
+export interface VolumeProfileResponse {
+  ticker: string
+  items: VolumeProfileItem[]
+}
+
+// ===== Watchlist =====
+export interface Watchlist {
+  id: number
+  user_id: number
+  name: string
+  description: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WatchlistItem {
+  id: number
+  watchlist_id: number
+  ticker: string
+  notes: string | null
+  added_at: string
+}
+
+export interface PriceAlert {
+  id: number
+  user_id: number
+  ticker: string
+  alert_type: string
+  threshold_price: number
+  is_triggered: boolean
+  is_active: boolean
+  delivery_method: string
+  triggered_at: string | null
+  created_at: string
+}
+
+// ===== Screener =====
+export interface ScreenerResult {
+  ticker: string
+  pe_ratio: number | null
+  pb_ratio: number | null
+  ev_ebitda: number | null
+  roe: number | null
+  debt_to_equity: number | null
+  eps: number | null
+  eps_growth_pct: number | null
+  dividend_yield: number | null
+  market_cap: number | null
+  sector: string | null
+  industry: string | null
+}
+
 // ===== Common =====
 export interface PaginatedResponse<T> {
   items: T[]
