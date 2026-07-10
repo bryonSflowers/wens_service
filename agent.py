@@ -230,23 +230,61 @@ async def generate_report(
 ) -> tuple[str, dict]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
+
+    # Try Ollama
     if provider == "ollama":
         try:
             return await _generate_ollama(query, pool, cfg, user_id)
         except Exception as e:
             return (f"⚠️ Ollama connection failed: {e}", {"model": "ollama", "finish_reason": "error"})
+
+    # Try Claude
     try:
         return await _generate_claude(query, pool, cfg, user_id)
+    except anthropic.NotFoundError:
+        pass  # fall through to offline mode below
     except Exception as e:
         err = str(e).lower()
-        if "api key" in err or "auth" in err or "unauthorized" in err or "not found" in err:
-            return (
-                "⚠️ **Anthropic API key not accepted.**\n\n"
-                "The `ANTHROPIC_API_KEY` environment variable may be missing or invalid. "
-                "Check your Railway project settings → Variables to ensure it is set correctly.",
-                {"model": "none", "finish_reason": "auth_error"},
-            )
-        return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
+        if "api key" not in err and "auth" not in err and "unauthorized" not in err:
+            return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
+        # Fall through to offline mode
+
+    # Offline fallback — generate from database data directly
+    try:
+        from datetime import date, timedelta
+        reports = await db.list_available_reports(pool)
+        if not reports:
+            return ("No financial data available in the database.", {"model": "offline", "finish_reason": "no_data"})
+
+        latest = reports[-1]
+        report_data = await db.get_monthly_report(pool, latest["year"], latest["month"])
+        metrics = []
+        if report_data:
+            metrics.append(f"**Period:** {report_data.get('year')}-{str(report_data.get('month')).zfill(2)}")
+            if report_data.get("revenue") is not None:
+                metrics.append(f"**Revenue:** NT${report_data['revenue']:,.0f}M")
+            if report_data.get("net_income") is not None:
+                metrics.append(f"**Net Income:** NT${report_data['net_income']:,.0f}M")
+            if report_data.get("expenses") is not None:
+                metrics.append(f"**Expenses:** NT${report_data['expenses']:,.0f}M")
+
+        text = f"""# Financial Report — {latest.get('ticker', 'N/A')}
+
+## Overview
+This report was generated in **offline mode** because no LLM backend API key is configured.
+
+## Latest Available Data
+{chr(10).join(metrics)}
+
+## Action Required
+To enable AI-powered report generation, set the **ANTHROPIC_API_KEY** environment variable on Railway, or configure an Ollama backend via `LLM_BACKEND=ollama`.
+
+## Available Reports
+""" + "\n".join(f"- {r['year']}-{str(r['month']).zfill(2)} ({r.get('ticker','N/A')})" for r in reports[-10:])
+
+        return (text, {"model": "offline", "finish_reason": "no_api_key"})
+    except Exception as e:
+        return (f"⚠️ Could not generate report: {e}", {"model": "none", "finish_reason": "error"})
 
 
 async def chat_completion(
