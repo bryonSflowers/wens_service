@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar'
 import { TickerBar } from '../ui/TickerBar'
 import { CommandPalette } from '../ui/CommandPalette'
 import { LanguageToggle } from '../ui/LanguageToggle'
+import { GlossaryToggle } from '../ui/GlossaryToggle'
 import { useAuthStore } from '../../store/auth'
 import { useSidebarStore } from '../../store/sidebar'
 import { useThemeStore } from '../../store/theme'
@@ -26,6 +27,7 @@ export function Layout() {
           {user && (
             <>
               <LanguageToggle />
+              <GlossaryToggle />
               <button onClick={toggleTheme} className="btn-ghost p-2 rounded-lg" title={dark ? _('common.lightMode') : _('common.darkMode')}>
                 {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>

@@ -13,6 +13,7 @@ import { StatCard } from '../components/ui/StatCard'
 import { AnimatedCounter } from '../components/ui/AnimatedCounter'
 import { ChartTooltip } from '../components/ui/ChartTooltip'
 import { PageSkeleton } from '../components/ui/Skeleton'
+import { TermTooltip } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { MonthlyReport, PortfolioSummary, Fundamental } from '../types'
@@ -209,7 +210,9 @@ export function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue vs Expenses — grouped bar */}
             <div className="card p-6">
-              <p className="text-sm font-semibold text-[var(--text)] mb-4">{_('dashboard.revenueExpenses')}</p>
+              <p className="text-sm font-semibold text-[var(--text)] mb-4">
+                <TermTooltip term="Revenue">{_('dashboard.revenueExpenses')}</TermTooltip>
+              </p>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={chartData} barCategoryGap="30%">
                   <defs>
