@@ -281,4 +281,47 @@ MIGRATIONS = [
         created_at          TIMESTAMP DEFAULT NOW()
     );
     """,
+    # 011 — AI Insights
+    """
+    CREATE TABLE IF NOT EXISTS ai_insights (
+        id          SERIAL PRIMARY KEY,
+        ticker      VARCHAR(16),
+        title       VARCHAR(256) NOT NULL,
+        body        TEXT NOT NULL,
+        insight_type VARCHAR(32) NOT NULL DEFAULT 'observation',
+        severity    VARCHAR(16) NOT NULL DEFAULT 'info',
+        metadata    JSONB,
+        created_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    # 012 — In-app notifications
+    """
+    CREATE TABLE IF NOT EXISTS notifications (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        title       VARCHAR(256) NOT NULL,
+        body        TEXT,
+        category    VARCHAR(32) NOT NULL DEFAULT 'general',
+        is_read     BOOLEAN NOT NULL DEFAULT FALSE,
+        link        VARCHAR(512),
+        created_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    # 013 — News sentiment
+    """
+    CREATE TABLE IF NOT EXISTS news_sentiment (
+        id          SERIAL PRIMARY KEY,
+        ticker      VARCHAR(16) NOT NULL,
+        title       TEXT NOT NULL,
+        url         TEXT,
+        source      VARCHAR(128),
+        sentiment   VARCHAR(16) NOT NULL,
+        score       NUMERIC(5, 2),
+        published_at TIMESTAMP,
+        created_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_news_sentiment_ticker ON news_sentiment(ticker, published_at);
+    """,
 ]

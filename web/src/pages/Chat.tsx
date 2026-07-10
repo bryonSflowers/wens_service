@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
-import { chatApi } from '../api/client'
-import { Send, Loader2, Bot, User } from 'lucide-react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { Send, Loader2, Bot, User, StopCircle } from 'lucide-react'
 import { useT } from '../i18n'
+
 
 interface Message {
   role: 'user' | 'assistant'
@@ -15,30 +15,88 @@ export function ChatPage() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [streamingContent, setStreamingContent] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, streamingContent])
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if (!input.trim() || loading) return
     const userMsg: Message = { role: 'user', content: input }
     setMessages((m) => [...m, userMsg])
     setInput('')
     setLoading(true)
+    setStreamingContent('')
+
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE || '')
+    const token = sessionStorage.getItem('token')
+    const apiKey = sessionStorage.getItem('api_key')
 
     try {
-      const { data } = await chatApi.send({
-        messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
-        max_tokens: 4096,
+      const res = await fetch(`${API_BASE}/llm/chat/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(apiKey ? { 'X-API-Key': apiKey } : {}),
+        },
+        body: JSON.stringify({
+          messages: [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
+          max_tokens: 4096,
+          stream: true,
+        }),
+        signal: controller.signal,
       })
-      setMessages((m) => [...m, { role: 'assistant', content: data.content }])
-    } catch {
+
+      const reader = res.body?.getReader()
+      if (!reader) return
+
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.type === 'content' && parsed.text) {
+              fullText += parsed.text
+              setStreamingContent(fullText)
+            }
+          } catch {}
+        }
+      }
+
+      setMessages((m) => [...m, { role: 'assistant', content: fullText }])
+      setStreamingContent('')
+    } catch (err: any) {
+      if (err.name === 'AbortError') return
       setMessages((m) => [...m, { role: 'assistant', content: _('chat.error') }])
     } finally {
       setLoading(false)
+      setStreamingContent('')
+      abortRef.current = null
     }
+  }, [input, loading, messages, _])
+
+  const handleStop = () => {
+    abortRef.current?.abort()
   }
 
   return (
@@ -71,12 +129,23 @@ export function ChatPage() {
               )}
             </div>
           ))}
-          {loading && (
+          {streamingContent && (
+            <div className="flex gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="bg-gray-100 dark:bg-slate-700 rounded-2xl rounded-bl-md px-4 py-3 text-sm text-gray-800 dark:text-slate-200">
+                <div className="prose-report whitespace-pre-wrap">{streamingContent}</div>
+                <span className="inline-block w-2 h-4 bg-blue-500 animate-pulse ml-0.5" />
+              </div>
+            </div>
+          )}
+          {loading && !streamingContent && (
             <div className="flex gap-3">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                 <Bot className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="bg-gray-100 dark:bg-slate-700 rounded-2xl rounded-bl-md px-4 py-3">
                 <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
               </div>
             </div>
@@ -94,9 +163,15 @@ export function ChatPage() {
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               disabled={loading}
             />
-            <button className="btn-primary" onClick={handleSend} disabled={loading || !input.trim()}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+            {loading ? (
+              <button className="btn-danger" onClick={handleStop}>
+                <StopCircle className="w-4 h-4" />
+              </button>
+            ) : (
+              <button className="btn-primary" onClick={handleSend} disabled={!input.trim()}>
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -510,7 +510,51 @@ async def chat_completion_stream(
     provider = cfg["provider"]
     model = cfg.get("model", OLLAMA_MODEL if provider == "ollama" else CLAUDE_MODEL)
 
-    text = await _run_tool_loop(
-        messages, pool, provider, model, max_tokens, temperature, user_id
-    )
-    yield {"type": "content", "text": text}
+    full_messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *messages,
+    ]
+    tools = _to_openai_tools(TOOL_DEFINITIONS) if provider == "ollama" else None
+
+    kwargs: dict = {
+        "model": model,
+        "messages": full_messages,
+        "max_tokens": max_tokens,
+        "stream": True,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if tools:
+        kwargs["tools"] = tools
+
+    if provider == "ollama":
+        client = AsyncOpenAI(
+            base_url=cfg.get("base_url", OLLAMA_BASE_URL),
+            api_key=cfg.get("api_key", "ollama"),
+        )
+        try:
+            stream = await client.chat.completions.create(**kwargs)
+            async for chunk in stream:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield {"type": "content", "text": delta.content}
+                if chunk.choices and chunk.choices[0].finish_reason == "stop":
+                    break
+        except Exception as e:
+            logger.error("Stream error: %s", e)
+            yield {"type": "content", "text": f"\n\nError: {e}"}
+        return
+
+    client = anthropic.AsyncAnthropic()
+    try:
+        async with client.messages.stream(
+            **{k: v for k, v in kwargs.items() if k != "stream"},
+            system=SYSTEM_PROMPT,
+            tools=TOOL_DEFINITIONS,
+        ) as stream:
+            async for event in stream:
+                if event.type == "content_block_delta" and hasattr(event.delta, "text"):
+                    yield {"type": "content", "text": event.delta.text}
+    except Exception as e:
+        logger.error("Claude stream error: %s", e)
+        yield {"type": "content", "text": f"\n\nError: {e}"}
