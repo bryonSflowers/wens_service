@@ -218,19 +218,20 @@ async def compare_analyze(
                     prompt += f"  {k}: {v}\n"
         prompt += "\n"
 
-    prompt += """Provide a structured comparative analysis covering:
+    prompt += """Write a **condensed, high-signal comparative analysis** (under 800 words). Be direct — no fluff, no full sentences where a phrase will do.
 
-1. **Valuation** — Which is cheapest/most expensive on P/E, P/B, EV/EBITDA? Is the premium justified?
-2. **Profitability** — Compare margins, ROE, ROA. Who operates most efficiently?
-3. **Growth** — Revenue growth, earnings growth trends. Who is gaining market share?
-4. **Financial Health** — Debt levels, cash flow generation, dividend sustainability.
-5. **Risk** — Beta, volatility, analyst consensus. What keeps each CEO up at night?
-6. **Competitive Position** — Moats, market leadership, threats from new entrants or substitutes.
-7. **Divergence** — Where do the numbers tell a different story than the market price? What is the market mispricing?
-8. **Catalysts** — For each company, what 1-2 events in the next 12 months could move the stock meaningfully?
+Structure:
+1. **Valuation** — Cheapest to most expensive on P/E and EV/EBITDA. Which premium is justified and which isn't? One sentence each.
+2. **Profitability & Efficiency** — Who earns the most per dollar of revenue / equity / assets? One clear winner, one laggard.
+3. **Growth** — Revenue growth vs. earnings growth. Who is gaining real share vs. cutting costs? Flag decoupling.
+4. **Health & Dividends** — Debt levels, FCF, payout ratio. Can dividends be sustained? Flag the riskiest balance sheet.
+5. **Risk & Position** — One sentence per company on what actually keeps the CEO up at night. No beta — focus on business risk.
+6. **The Mispricing** — What is the market getting wrong about each company? (1 sentence each)
+7. **Catalyst** — One concrete event per company that could move the stock in the next 12 months.
 
-Use specific figures from the data. Be direct, be honest. Flag weaknesses, not just strengths.
-End with a clear verdict: which is best positioned for the next 12 months, and why."""
+End with **one-sentence verdict**: which is best positioned, and why.
+
+Use ✅ for strengths, ⚠️ for risks, 📌 for key numbers (just the most important 1-2 per company). No tables. No paragraphs over 3 lines."""
 
     try:
         provider = settings.llm_backend
