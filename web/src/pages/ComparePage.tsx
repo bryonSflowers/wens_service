@@ -5,7 +5,8 @@ import {
 } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer, Legend, RadarChart, Radar,
+  PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts'
 import client from '../api/client'
 import { CompanySelector, COMPANY_COLORS } from '../components/ui/CompanySelector'
@@ -297,6 +298,83 @@ export function ComparePage() {
       {!loading && items.length === 0 && !error && (
         <EmptyState title="Select companies" description="Choose 2–6 companies above to compare fundamentals and performance side-by-side." icon="chart" />
       )}
+
+      {/* Visual Score Summary */}
+      {items.length > 0 && (() => {
+        const maxVals: Record<string, number> = {}
+        const dims = ['pe_ratio', 'roe', 'eps_growth_pct', 'dividend_yield', 'market_cap']
+        const dimLabels = ['Value', 'Profit', 'Growth', 'Yield', 'Size']
+        const dimScale = [1, 100, 100, 100, 1e9]
+        const isHigher = [false, true, true, true, true]
+
+        for (const d of dims) {
+          maxVals[d] = Math.max(...items.map((i) => (i as any)[d] != null ? Math.abs((i as any)[d]) : 0), 0)
+        }
+
+        const radarData = dimLabels.map((label, di) => {
+          const point: any = { dim: label }
+          for (const item of items) {
+            const raw = (item as any)[dims[di]]
+            const scaled = raw != null ? raw * dimScale[di] : 0
+            const max = maxVals[dims[di]]
+            // Invert for P/E (lower is better)
+            point[item.ticker] = max > 0 ? (isHigher[di] ? scaled / max : 1 - scaled / max) * 100 : 0
+          }
+          return point
+        })
+
+        return (
+          <div className="card p-6">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Comparative Scorecard</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Radar */}
+              <div className="lg:col-span-2">
+                <ResponsiveContainer width="100%" height={280}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="var(--card-border)" />
+                    <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                    {items.map((item) => (
+                      <Radar key={item.ticker} name={item.ticker} dataKey={item.ticker}
+                        stroke={COMPANY_COLORS[item.ticker] || '#3b82f6'}
+                        fill={COMPANY_COLORS[item.ticker] || '#3b82f6'} fillOpacity={0.1} strokeWidth={2} />
+                    ))}
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Score breakdown */}
+              <div className="space-y-3">
+                {items.map((item) => {
+                  const scores = dims.map((d, di) => {
+                    const raw = (item as any)[d]
+                    const scaled = raw != null ? raw * dimScale[di] : 0
+                    const max = maxVals[d]
+                    const score = max > 0 ? (isHigher[di] ? scaled / max : 1 - scaled / max) * 100 : 0
+                    return Math.round(score)
+                  })
+                  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                  return (
+                    <div key={item.ticker} className="p-3 rounded-lg border border-[var(--card-border)]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COMPANY_COLORS[item.ticker] }} />
+                        <span className="text-sm font-semibold">{item.ticker}</span>
+                        <span className="text-lg font-bold font-mono ml-auto">{avg}</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-[var(--card-border)] overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: COMPANY_COLORS[item.ticker] }} />
+                      </div>
+                      <div className="flex justify-between mt-1 text-[10px] text-[var(--text-secondary)]">
+                        {scores.map((s, i) => <span key={i}>{dimLabels[i]} {s}</span>)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {selected.length >= 2 && (
         <div className="card overflow-hidden">
