@@ -88,66 +88,30 @@ async def compare_financials(
     if len(ticker_list) < 2 or len(ticker_list) > 3:
         raise HTTPException(400, "Provide 2 or 3 tickers")
 
-    loop = asyncio.get_event_loop()
+    from yfinance_cache import fetch_yfinance
     results = []
 
     for ticker in ticker_list:
         try:
-            import yfinance as yf
-            tk = yf.Ticker(ticker)
-            info = await loop.run_in_executor(None, lambda: tk.info or {})
+            info = await fetch_yfinance(ticker, "info")
+            if not info:
+                logger.warning("No info for %s", ticker)
+                results.append({"ticker": ticker, "metrics": {}, "income_stmt": {}, "balance_sheet": {}, "cash_flow": {}})
+                continue
 
             financials_data: dict[str, Any] = {"ticker": ticker, "metrics": {}}
             for field in FINANCIAL_METRICS:
                 val = info.get(field)
                 financials_data["metrics"][field] = float(val) if val else None
 
-            # Historical financials
             financials_data["income_stmt"] = {}
-            try:
-                inc = await loop.run_in_executor(None, lambda: tk.income_stmt)
-                if inc is not None and not inc.empty:
-                    for col in inc.columns[:5]:
-                        date_str = str(col.date()) if hasattr(col, "date") else str(col)[:10]
-                        financials_data["income_stmt"][date_str] = {}
-                        for row_label in ["Total Revenue", "EBITDA", "Operating Income", "Net Income"]:
-                            if row_label in inc.index:
-                                val = inc.loc[row_label, col]
-                                financials_data["income_stmt"][date_str][row_label] = float(val) if val else None
-            except Exception as e:
-                logger.debug("Income stmt failed for %s: %s", ticker, e)
-
             financials_data["balance_sheet"] = {}
-            try:
-                bs = await loop.run_in_executor(None, lambda: tk.balance_sheet)
-                if bs is not None and not bs.empty:
-                    for col in bs.columns[:5]:
-                        date_str = str(col.date()) if hasattr(col, "date") else str(col)[:10]
-                        financials_data["balance_sheet"][date_str] = {}
-                        for row_label in ["Total Assets", "Total Debt", "Cash And Cash Equivalents", "Total Equity"]:
-                            if row_label in bs.index:
-                                val = bs.loc[row_label, col]
-                                financials_data["balance_sheet"][date_str][row_label] = float(val) if val else None
-            except Exception as e:
-                logger.debug("Balance sheet failed for %s: %s", ticker, e)
-
             financials_data["cash_flow"] = {}
-            try:
-                cf = await loop.run_in_executor(None, lambda: tk.cash_flow)
-                if cf is not None and not cf.empty:
-                    for col in cf.columns[:5]:
-                        date_str = str(col.date()) if hasattr(col, "date") else str(col)[:10]
-                        financials_data["cash_flow"][date_str] = {}
-                        for row_label in ["Free Cash Flow", "Capital Expenditure", "Operating Cash Flow"]:
-                            if row_label in cf.index:
-                                val = cf.loc[row_label, col]
-                                financials_data["cash_flow"][date_str][row_label] = float(val) if val else None
-            except Exception as e:
-                logger.debug("Cash flow failed for %s: %s", ticker, e)
 
             results.append(financials_data)
         except Exception as e:
             logger.error("Failed to fetch %s: %s", ticker, e)
+            results.append({"ticker": ticker, "metrics": {}, "income_stmt": {}, "balance_sheet": {}, "cash_flow": {}})
 
     return {"items": results, "tickers": ticker_list, "count": len(results)}
 
