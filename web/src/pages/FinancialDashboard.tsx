@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, BarChart3 } from 'lucide-react'
+import { TermTooltip } from '../components/ui/TermTooltip'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
@@ -10,6 +11,16 @@ import { CompanyLegend } from '../components/ui/CompanyLegend'
 
 const TICKERS = ['3045.TW', '2412.TW', '4904.TW']
 const COMPANY_COLORS: Record<string, string> = { '3045.TW': '#F58220', '2412.TW': '#0096D6', '4904.TW': '#E5006D' }
+
+const TERM_MAP: Record<string, string> = {
+  totalRevenue: 'Revenue', ebitda: 'EBITDA', operatingIncome: 'Operating Income',
+  netIncome: 'Net Income', freeCashFlow: 'Free Cash Flow', capitalExpenditures: 'CapEx',
+  totalAssets: 'Total Assets', totalDebt: 'Total Debt', totalCash: 'Cash & Equivalents',
+  totalStockholderEquity: 'Shareholders Equity', returnOnEquity: 'ROE', returnOnAssets: 'ROA',
+  earningsPerShare: 'EPS', dividendYield: 'Dividend Yield', debtToEquity: 'Debt-to-Equity',
+  currentRatio: 'Current Ratio', grossMargins: 'Gross Margin', operatingMargins: 'Operating Margin',
+  profitMargins: 'Profit Margin', enterpriseToEbitda: 'EV/EBITDA',
+}
 
 const METRIC_CARDS = [
   { key: 'totalRevenue', label: '營業收入', fmt: (v: number) => `NT$${(v / 1e9).toFixed(1)}B` },
@@ -83,7 +94,9 @@ export function FinancialDashboardPage() {
               onClick={() => setSelectedMetric(metric.key)}
               className={`card p-3 text-left transition-all ${selectedMetric === metric.key ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
             >
-              <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">{metric.label}</p>
+              <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                <TermTooltip term={TERM_MAP[metric.key] || metric.label}>{metric.label}</TermTooltip>
+              </p>
               {TICKERS.map((t, i) => {
                 const v = vals[i]
                 const pct = maxVal > 0 && v != null ? (v / maxVal) * 100 : 0
@@ -148,7 +161,9 @@ export function FinancialDashboardPage() {
             <tbody>
               {METRIC_CARDS.map((metric) => (
                 <tr key={metric.key} className="border-b border-[var(--card-border)] hover:bg-[var(--sidebar-link-hover)]">
-                  <td className="px-4 py-3 font-medium text-[var(--text)]">{metric.label}</td>
+                  <td className="px-4 py-3 font-medium text-[var(--text)]">
+                    <TermTooltip term={TERM_MAP[metric.key] || metric.label}>{metric.label}</TermTooltip>
+                  </td>
                   {TICKERS.map((t) => {
                     const item = data.find((d) => d.ticker === t)
                     const v = item?.metrics?.[metric.key] ?? null
