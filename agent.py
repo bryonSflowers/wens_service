@@ -13,18 +13,25 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 
-SYSTEM_PROMPT = """You are a senior financial analyst with access to a database of monthly financial reports.
+SYSTEM_PROMPT = """You are a senior financial analyst with access to a database of monthly financial reports and uploaded company documents.
 
-When generating a report or analysis:
-1. Call list_available_reports to understand what data is available.
-2. Fetch the relevant months using get_monthly_report or get_reports_range.
-3. Analyse all retrieved data thoroughly.
-4. Produce a professional financial report structured as:
-   - Executive Summary
-   - Key Metrics (with exact figures)
-   - Trend Analysis (MoM and YoY where applicable)
-   - Highlights & Concerns
-   - Recommendations
+Financial Reports:
+- Call list_available_reports to understand what data is available.
+- Fetch the relevant months using get_monthly_report or get_reports_range.
+- Analyse all retrieved data thoroughly.
+- Produce a professional financial report structured as:
+  - Executive Summary
+  - Key Metrics (with exact figures)
+  - Trend Analysis (MoM and YoY where applicable)
+  - Highlights & Concerns
+  - Recommendations
+
+Uploaded Documents:
+Use list_uploaded_docs, get_uploaded_doc, and search_documents to find, read, and analyse .txt, .csv, .xlsx, .docx files uploaded by company employees.
+- First call list_uploaded_docs to see what files are available.
+- Use search_documents to find specific information across files.
+- Call get_uploaded_doc with a document ID to read its full content.
+- Extract financial figures, tables, and key insights from these documents and incorporate them into your analysis.
 
 Use clear headings, bullet points, and tables where helpful. Be precise with numbers."""
 
@@ -77,6 +84,7 @@ async def _generate_claude(
     query: str,
     pool: asyncpg.Pool,
     llm_config: Optional[dict] = None,
+    user_id: Optional[int] = None,
 ) -> tuple[str, dict]:
     client = anthropic.AsyncAnthropic()
     messages: list[dict] = [{"role": "user", "content": query}]
@@ -107,7 +115,7 @@ async def _generate_claude(
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
-                result = await execute_tool(block.name, block.input, pool)
+                result = await execute_tool(block.name, block.input, pool, user_id)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -123,6 +131,7 @@ async def _generate_ollama(
     query: str,
     pool: asyncpg.Pool,
     llm_config: Optional[dict] = None,
+    user_id: Optional[int] = None,
 ) -> tuple[str, dict]:
     cfg = llm_config or {}
     client = AsyncOpenAI(
@@ -173,6 +182,7 @@ async def _generate_ollama(
                 tc.function.name,
                 json.loads(tc.function.arguments),
                 pool,
+                user_id,
             )
             messages.append({
                 "role": "tool",
@@ -187,12 +197,13 @@ async def generate_report(
     query: str,
     pool: asyncpg.Pool,
     llm_config_id: Optional[int] = None,
+    user_id: Optional[int] = None,
 ) -> tuple[str, dict]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
     if provider == "ollama":
-        return await _generate_ollama(query, pool, cfg)
-    return await _generate_claude(query, pool, cfg)
+        return await _generate_ollama(query, pool, cfg, user_id)
+    return await _generate_claude(query, pool, cfg, user_id)
 
 
 async def chat_completion(
@@ -201,6 +212,7 @@ async def chat_completion(
     llm_config_id: Optional[int] = None,
     max_tokens: int = 4096,
     temperature: Optional[float] = None,
+    user_id: Optional[int] = None,
 ) -> tuple[str, dict]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
@@ -258,6 +270,7 @@ async def chat_completion(
                     tc.function.name,
                     json.loads(tc.function.arguments),
                     pool,
+                    user_id,
                 )
                 full_messages.append({
                     "role": "tool",
@@ -297,7 +310,7 @@ async def chat_completion(
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
-                result = await execute_tool(block.name, block.input, pool)
+                result = await execute_tool(block.name, block.input, pool, user_id)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -314,6 +327,7 @@ async def _run_tool_loop(
     model: str,
     max_tokens: int,
     temperature: Optional[float] = None,
+    user_id: Optional[int] = None,
 ) -> str:
     if provider == "ollama":
         client = AsyncOpenAI(
@@ -362,6 +376,7 @@ async def _run_tool_loop(
                     tc.function.name,
                     json.loads(tc.function.arguments),
                     pool,
+                    user_id,
                 )
                 full_messages.append({
                     "role": "tool",
@@ -400,7 +415,7 @@ async def _run_tool_loop(
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
-                result = await execute_tool(block.name, block.input, pool)
+                result = await execute_tool(block.name, block.input, pool, user_id)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
@@ -416,12 +431,13 @@ async def chat_completion_stream(
     llm_config_id: Optional[int] = None,
     max_tokens: int = 4096,
     temperature: Optional[float] = None,
+    user_id: Optional[int] = None,
 ) -> AsyncGenerator[dict, None]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
     model = cfg.get("model", OLLAMA_MODEL if provider == "ollama" else CLAUDE_MODEL)
 
     text = await _run_tool_loop(
-        messages, pool, provider, model, max_tokens, temperature
+        messages, pool, provider, model, max_tokens, temperature, user_id
     )
     yield {"type": "content", "text": text}

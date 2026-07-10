@@ -30,6 +30,7 @@ async def chat(
             llm_config_id=body.llm_config_id,
             max_tokens=body.max_tokens,
             temperature=body.temperature,
+            user_id=user_id,
         )
     except Exception as exc:
         raise HTTPException(500, str(exc))
@@ -45,9 +46,13 @@ async def chat(
 
 
 @router.post("/chat/stream")
-async def chat_stream(body: ChatRequest):
+async def chat_stream(
+    body: ChatRequest,
+    current_user: dict = Depends(get_current_user_optional),
+):
     body.stream = True
     pool = await db_service.get_pool()
+    user_id = current_user["id"] if current_user else None
 
     async def event_stream():
         async for chunk in agent_module.chat_completion_stream(
@@ -56,6 +61,7 @@ async def chat_stream(body: ChatRequest):
             llm_config_id=body.llm_config_id,
             max_tokens=body.max_tokens,
             temperature=body.temperature,
+            user_id=user_id,
         ):
             yield f"data: {json.dumps(chunk)}\n\n"
         yield "data: [DONE]\n\n"
