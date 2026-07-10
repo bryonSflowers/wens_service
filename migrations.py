@@ -221,4 +221,18 @@ MIGRATIONS = [
     """
     CREATE INDEX IF NOT EXISTS idx_price_alerts_active ON price_alerts(is_active, ticker);
     """,
+    # 007 — Uploaded documents
+    """
+    CREATE TABLE IF NOT EXISTS uploaded_docs (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        filename    VARCHAR(512) NOT NULL,
+        file_type   VARCHAR(32) NOT NULL,
+        content     TEXT NOT NULL,
+        raw_tables  JSONB,
+        word_count  INTEGER DEFAULT 0,
+        metadata    JSONB,
+        created_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
 ]

@@ -320,6 +320,19 @@ export interface ScreenerResult {
   industry: string | null
 }
 
+// ===== Documents =====
+export interface UploadedDoc {
+  id: number
+  user_id: number
+  filename: string
+  file_type: string
+  content: string
+  raw_tables: unknown[] | null
+  word_count: number
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
 // ===== Common =====
 export interface PaginatedResponse<T> {
   items: T[]

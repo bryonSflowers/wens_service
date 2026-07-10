@@ -16,6 +16,7 @@ const PAGES = [
   { path: '/generated', label: 'Generated Reports', keywords: 'generated history previous' },
   { path: '/chat', label: 'LLM Chat', keywords: 'chat ai analyst ask' },
   { path: '/kv', label: 'KV Store', keywords: 'kv store key value' },
+  { path: '/documents', label: 'Documents', keywords: 'documents upload files excel word' },
   { path: '/admin', label: 'Admin', keywords: 'admin settings config' },
   { path: '/settings', label: 'Settings', keywords: 'settings profile api keys' },
 ]

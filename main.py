@@ -35,6 +35,7 @@ from routers import (
     chart,
     watchlist,
     screener,
+    documents,
 )
 
 load_dotenv()
@@ -107,6 +108,7 @@ app.include_router(fundamentals.router)
 app.include_router(chart.router)
 app.include_router(watchlist.router)
 app.include_router(screener.router)
+app.include_router(documents.router)
 
 
 @app.get("/health", response_model=HealthResponse)

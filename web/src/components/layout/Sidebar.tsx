@@ -3,6 +3,7 @@ import {
   LayoutDashboard, FileText, MessageSquare, Database,
   FileStack, FileInput, Settings, Shield, ChevronLeft, Menu,
   Briefcase, Activity, BarChart3, Eye, TrendingUp, Search,
+  Upload,
 } from 'lucide-react'
 import { useSidebarStore } from '../../store/sidebar'
 
@@ -25,6 +26,7 @@ const dataNavItems = [
   { to: '/templates', icon: FileStack, label: 'Templates' },
   { to: '/generated', icon: FileText, label: 'Generated' },
   { to: '/chat', icon: MessageSquare, label: 'LLM Chat' },
+  { to: '/documents', icon: Upload, label: 'Documents' },
 ]
 
 const systemNavItems = [

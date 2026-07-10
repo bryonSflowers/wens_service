@@ -218,6 +218,21 @@ export const alertsApi = {
   check: (ticker?: string) => client.post('/watchlists/alerts/check', null, { params: { ticker } }),
 }
 
+// ===== Documents API =====
+export const documentsApi = {
+  upload: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return client.post('/documents/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  list: (params?: { page?: number; page_size?: number }) =>
+    client.get('/documents', { params }),
+  get: (id: number) => client.get(`/documents/${id}`),
+  delete: (id: number) => client.delete(`/documents/${id}`),
+}
+
 // ===== Screener API =====
 export const screenerApi = {
   screen: (params: Record<string, string | number | undefined>) =>
