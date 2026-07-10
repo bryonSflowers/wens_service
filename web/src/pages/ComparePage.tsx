@@ -37,6 +37,23 @@ interface CompareItem {
   }
 }
 
+interface AnalystConsensus {
+  recommendation: string | null
+  numAnalysts: number | null
+  targetPrice: number | null
+  currentPrice: number | null
+  upside: number | null
+}
+
+interface FundamentalsBreakdown {
+  piotroski: number | null
+  piotroski_label: string
+  piotroski_passed: string[]
+  altman_z: number | null
+  altman_zone: 'safe' | 'grey' | 'distress' | null
+  peer_percentiles: Record<string, number>
+}
+
 export function ComparePage() {
   const [selected, setSelected] = useState<string[]>([])
   const [items, setItems] = useState<CompareItem[]>([])
@@ -45,6 +62,8 @@ export function ComparePage() {
   const [analysisScores, setAnalysisScores] = useState<Record<string, Record<string, number>> | null>(null)
   const [analysisVerdict, setAnalysisVerdict] = useState('')
   const [analysisSentiment, setAnalysisSentiment] = useState<Record<string, string>>({})
+  const [analysisConsensus, setAnalysisConsensus] = useState<Record<string, AnalystConsensus>>({})
+  const [analysisFundamentals, setAnalysisFundamentals] = useState<Record<string, FundamentalsBreakdown>>({})
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([])
   const [chatInput, setChatInput] = useState('')
@@ -87,6 +106,8 @@ export function ComparePage() {
           setAnalysisScores(r.data.scores || null)
           setAnalysisVerdict(r.data.verdict || '')
           setAnalysisSentiment(r.data.sentiment || {})
+          setAnalysisConsensus(r.data.consensus || {})
+          setAnalysisFundamentals(r.data.fundamentals_breakdown || {})
         })
         .catch(() => { setAnalysis(''); setAnalysisScores(null) })
         .finally(() => setAnalysisLoading(false))
@@ -487,15 +508,15 @@ export function ComparePage() {
             </div>
           </div>
 
-          {/* LINE PLOT: Scorecard dimension profiles */}
+          {/* GROUPED BAR: Scorecard dimension scores — grouped by dimension, one bar per company */}
           {analysisScores && (
             <div className="card p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Scorecard Dimension Profiles</span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">Line = company profile across all 5 dimensions</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Scorecard by Dimension</span>
+                <span className="text-[10px] text-[var(--text-tertiary)]">Per-dimension score (0–100), grouped for direct comparison</span>
               </div>
               <ResponsiveContainer width="100%" height={260}>
-                <LineChart
+                <BarChart
                   data={['valuation','profitability','growth','health','momentum'].map((dim) => {
                     const labels: Record<string, string> = { valuation:'Valuation', profitability:'Profitability', growth:'Growth', health:'Health', momentum:'Momentum' }
                     const p: any = { dim: labels[dim] || dim }
@@ -503,6 +524,8 @@ export function ComparePage() {
                     return p
                   })}
                   margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
+                  barCategoryGap="20%"
+                  barGap={2}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" vertical={false} />
                   <XAxis dataKey="dim" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} />
@@ -517,23 +540,122 @@ export function ComparePage() {
                             <div key={p.name} className="flex items-center gap-2 py-0.5">
                               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color }} />
                               <span className="text-[var(--text-secondary)]">{p.name}:</span>
-                              <span className="font-mono font-bold text-[var(--text)]">{Math.round(p.value as number)}</span>
+                              <span className="font-mono font-bold text-[var(--text)]">{Math.round(p.value as number)}/100</span>
                             </div>
                           ))}
                         </div>
                       )
                     }}
                   />
-                  <Legend iconType="line" wrapperStyle={{ fontSize: 10 }} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
                   {Object.keys(analysisScores).map((t) => (
-                    <Line key={t} type="monotone" dataKey={t}
-                      stroke={COMPANY_COLORS[t] || '#3b82f6'} strokeWidth={2.5}
-                      dot={{ r: 4, fill: COMPANY_COLORS[t] || '#3b82f6', strokeWidth: 0 }}
-                      activeDot={{ r: 5 }}
-                      name={t} connectNulls={false} />
+                    <Bar key={t} dataKey={t} name={t}
+                      fill={COMPANY_COLORS[t] || '#3b82f6'}
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={40}
+                    />
                   ))}
-                </LineChart>
+                </BarChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* ANALYST CONSENSUS + FUNDAMENTALS QUALITY */}
+          {(Object.keys(analysisConsensus).length > 0 || Object.keys(analysisFundamentals).length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Analyst consensus */}
+              {Object.keys(analysisConsensus).length > 0 && (
+                <div className="card p-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-3">Analyst Consensus</span>
+                  <div className="space-y-3">
+                    {Object.entries(analysisConsensus).map(([ticker, cons]) => {
+                      const recColor = cons.recommendation?.includes('BUY')
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : cons.recommendation?.includes('SELL')
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      const upsideColor = cons.upside != null && cons.upside > 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : cons.upside != null && cons.upside < 0
+                          ? 'text-red-500 dark:text-red-400'
+                          : 'text-[var(--text-secondary)]'
+                      return (
+                        <div key={ticker} className="flex items-center gap-3 py-2 border-b border-[var(--card-border)] last:border-0">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COMPANY_COLORS[ticker] }} />
+                          <span className="text-xs font-bold text-[var(--text)] w-20 shrink-0">{ticker}</span>
+                          {cons.recommendation ? (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${recColor}`}>{cons.recommendation}</span>
+                          ) : <span className="text-[10px] text-[var(--text-tertiary)]">No consensus</span>}
+                          {cons.numAnalysts && <span className="text-[10px] text-[var(--text-tertiary)]">{cons.numAnalysts} analysts</span>}
+                          <span className="flex-1" />
+                          {cons.targetPrice && (
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Target <span className="font-mono font-bold text-[var(--text)]">${cons.targetPrice}</span>
+                            </span>
+                          )}
+                          {cons.upside != null && (
+                            <span className={`text-xs font-mono font-bold ${upsideColor}`}>
+                              {cons.upside >= 0 ? '+' : ''}{cons.upside}%
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Piotroski F-Score + Altman Z-Score */}
+              {Object.keys(analysisFundamentals).length > 0 && (
+                <div className="card p-4">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-3">Fundamental Quality Scores</span>
+                  <div className="space-y-3">
+                    {Object.entries(analysisFundamentals).map(([ticker, fb]) => {
+                      const pColor = fb.piotroski != null && fb.piotroski >= 7
+                        ? 'text-green-600 dark:text-green-400'
+                        : fb.piotroski != null && fb.piotroski >= 4
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-red-500 dark:text-red-400'
+                      const zColor = fb.altman_zone === 'safe'
+                        ? 'text-green-600 dark:text-green-400'
+                        : fb.altman_zone === 'grey'
+                          ? 'text-yellow-600 dark:text-yellow-400'
+                          : 'text-red-500 dark:text-red-400'
+                      return (
+                        <div key={ticker} className="py-2 border-b border-[var(--card-border)] last:border-0">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COMPANY_COLORS[ticker] }} />
+                            <span className="text-xs font-bold text-[var(--text)]">{ticker}</span>
+                          </div>
+                          <div className="flex gap-4 ml-4.5">
+                            <div>
+                              <p className="text-[10px] text-[var(--text-tertiary)]">Piotroski F-Score</p>
+                              <p className={`text-sm font-bold font-mono ${pColor}`}>
+                                {fb.piotroski ?? '-'}/9
+                                <span className="text-[10px] font-normal ml-1">{fb.piotroski_label}</span>
+                              </p>
+                            </div>
+                            {fb.altman_z != null && (
+                              <div>
+                                <p className="text-[10px] text-[var(--text-tertiary)]">Altman Z-Score</p>
+                                <p className={`text-sm font-bold font-mono ${zColor}`}>
+                                  {fb.altman_z}
+                                  <span className="text-[10px] font-normal ml-1 capitalize">{fb.altman_zone}</span>
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          {fb.piotroski_passed?.length > 0 && (
+                            <p className="text-[10px] text-[var(--text-tertiary)] ml-4.5 mt-1">
+                              ✓ {fb.piotroski_passed.slice(0, 3).join(' · ')}{fb.piotroski_passed.length > 3 ? ` +${fb.piotroski_passed.length - 3} more` : ''}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -557,13 +679,22 @@ export function ComparePage() {
                       <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COMPANY_COLORS[ticker] }} />
                       <span className="text-sm font-bold text-[var(--text)]">{ticker}</span>
                       {sent && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto ${
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           sent === 'bullish' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                           sent === 'bearish' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                           'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                         }`}>{sent}</span>
                       )}
-                      <span className="text-lg font-bold font-mono">{overall}</span>
+                      {analysisConsensus[ticker]?.upside != null && (
+                        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                          (analysisConsensus[ticker].upside ?? 0) > 0
+                            ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
+                            : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                        }`}>
+                          {(analysisConsensus[ticker].upside ?? 0) >= 0 ? '+' : ''}{analysisConsensus[ticker].upside}%
+                        </span>
+                      )}
+                      <span className="ml-auto text-lg font-bold font-mono">{overall}</span>
                     </div>
                     {/* Dimension gauges */}
                     <div className="space-y-3">
