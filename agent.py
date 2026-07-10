@@ -231,19 +231,22 @@ async def generate_report(
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
     if provider == "ollama":
-        return await _generate_ollama(query, pool, cfg, user_id)
-    api_key = os.getenv("ANTHROPIC_API_KEY", "") or (cfg.get("api_key") or "")
-    if not api_key:
-        return (
-            "⚠️ **LLM not configured.**\n\n"
-            "To use AI-powered report generation, set the `ANTHROPIC_API_KEY` "
-            "environment variable with your Anthropic API key, or configure an "
-            "LLM provider in the Admin → LLM Configs page.\n\n"
-            "You can also switch to the Ollama backend by setting "
-            "`LLM_BACKEND=ollama` with a valid `OLLAMA_BASE_URL`.",
-            {"model": "none", "finish_reason": "config_error"},
-        )
-    return await _generate_claude(query, pool, cfg, user_id)
+        try:
+            return await _generate_ollama(query, pool, cfg, user_id)
+        except Exception as e:
+            return (f"⚠️ Ollama connection failed: {e}", {"model": "ollama", "finish_reason": "error"})
+    try:
+        return await _generate_claude(query, pool, cfg, user_id)
+    except Exception as e:
+        err = str(e).lower()
+        if "api key" in err or "auth" in err or "unauthorized" in err or "not found" in err:
+            return (
+                "⚠️ **Anthropic API key not accepted.**\n\n"
+                "The `ANTHROPIC_API_KEY` environment variable may be missing or invalid. "
+                "Check your Railway project settings → Variables to ensure it is set correctly.",
+                {"model": "none", "finish_reason": "auth_error"},
+            )
+        return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
 
 
 async def chat_completion(
