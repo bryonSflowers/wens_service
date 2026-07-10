@@ -40,6 +40,9 @@ export function ComparePage() {
   const [items, setItems] = useState<CompareItem[]>([])
   const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; price: number }[]>>({})
   const [analysis, setAnalysis] = useState('')
+  const [analysisScores, setAnalysisScores] = useState<Record<string, Record<string, number>> | null>(null)
+  const [analysisVerdict, setAnalysisVerdict] = useState('')
+  const [analysisSentiment, setAnalysisSentiment] = useState<Record<string, string>>({})
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([])
   const [chatInput, setChatInput] = useState('')
@@ -77,8 +80,13 @@ export function ComparePage() {
       setAnalysisLoading(true)
       setAnalysis('')
       client.get('/compare/analyze', { params: { tickers: selected.join(',') } })
-        .then((r) => setAnalysis(r.data.analysis || ''))
-        .catch(() => setAnalysis(''))
+        .then((r) => {
+          setAnalysis(r.data.analysis || '')
+          setAnalysisScores(r.data.scores || null)
+          setAnalysisVerdict(r.data.verdict || '')
+          setAnalysisSentiment(r.data.sentiment || {})
+        })
+        .catch(() => { setAnalysis(''); setAnalysisScores(null) })
         .finally(() => setAnalysisLoading(false))
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Comparison failed')
@@ -299,82 +307,99 @@ export function ComparePage() {
         <EmptyState title="Select companies" description="Choose 2–6 companies above to compare fundamentals and performance side-by-side." icon="chart" />
       )}
 
-      {/* Visual Score Summary */}
-      {items.length > 0 && (() => {
-        const maxVals: Record<string, number> = {}
-        const dims = ['pe_ratio', 'roe', 'eps_growth_pct', 'dividend_yield', 'market_cap']
-        const dimLabels = ['Value', 'Profit', 'Growth', 'Yield', 'Size']
-        const dimScale = [1, 100, 100, 100, 1e9]
-        const isHigher = [false, true, true, true, true]
-
-        for (const d of dims) {
-          maxVals[d] = Math.max(...items.map((i) => (i as any)[d] != null ? Math.abs((i as any)[d]) : 0), 0)
-        }
-
-        const radarData = dimLabels.map((label, di) => {
-          const point: any = { dim: label }
-          for (const item of items) {
-            const raw = (item as any)[dims[di]]
-            const scaled = raw != null ? raw * dimScale[di] : 0
-            const max = maxVals[dims[di]]
-            // Invert for P/E (lower is better)
-            point[item.ticker] = max > 0 ? (isHigher[di] ? scaled / max : 1 - scaled / max) * 100 : 0
-          }
-          return point
-        })
-
-        return (
-          <div className="card p-6">
-            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Comparative Scorecard</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Radar */}
-              <div className="lg:col-span-2">
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="var(--card-border)" />
-                    <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                    {items.map((item) => (
-                      <Radar key={item.ticker} name={item.ticker} dataKey={item.ticker}
-                        stroke={COMPANY_COLORS[item.ticker] || '#3b82f6'}
-                        fill={COMPANY_COLORS[item.ticker] || '#3b82f6'} fillOpacity={0.1} strokeWidth={2} />
-                    ))}
-                    <Legend />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Score breakdown */}
-              <div className="space-y-3">
-                {items.map((item) => {
-                  const scores = dims.map((d, di) => {
-                    const raw = (item as any)[d]
-                    const scaled = raw != null ? raw * dimScale[di] : 0
-                    const max = maxVals[d]
-                    const score = max > 0 ? (isHigher[di] ? scaled / max : 1 - scaled / max) * 100 : 0
-                    return Math.round(score)
-                  })
-                  const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-                  return (
-                    <div key={item.ticker} className="p-3 rounded-lg border border-[var(--card-border)]">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COMPANY_COLORS[item.ticker] }} />
-                        <span className="text-sm font-semibold">{item.ticker}</span>
-                        <span className="text-lg font-bold font-mono ml-auto">{avg}</span>
-                      </div>
-                      <div className="w-full h-2 rounded-full bg-[var(--card-border)] overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: COMPANY_COLORS[item.ticker] }} />
-                      </div>
-                      <div className="flex justify-between mt-1 text-[10px] text-[var(--text-secondary)]">
-                        {scores.map((s, i) => <span key={i}>{dimLabels[i]} {s}</span>)}
-                      </div>
+      {/* AI Scorecard — interactive charts from analysis */}
+      {(analysisScores || items.length > 0) && (
+        <div className="card p-6">
+          <h3 className="text-sm font-semibold text-[var(--text)] mb-4">
+            {analysisScores ? 'AI Analyst Scorecard' : 'Comparative Scorecard'}
+          </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Radar chart */}
+            <div className="lg:col-span-2">
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={
+                  analysisScores && Object.keys(analysisScores).length > 0
+                    ? ['valuation','profitability','growth','health','momentum'].map((dim) => {
+                        const p: any = { dim: dim.charAt(0).toUpperCase() + dim.slice(1,4) }
+                        for (const [t, s] of Object.entries(analysisScores)) { p[t] = (s as any)[dim] || 0 }
+                        return p
+                      })
+                    : (() => {
+                        const dims = ['pe_ratio','roe','eps_growth_pct','dividend_yield','market_cap']
+                        const dl = ['Value','Profit','Growth','Yield','Size']
+                        const sc = [1,100,100,100,1e9]; const ih = [false,true,true,true,true]
+                        const mv: Record<string,number> = {}
+                        for (const d of dims) mv[d] = Math.max(...items.map(i => Math.abs((i as any)[d] ?? 0)),0)
+                        return dl.map((l,di) => {
+                          const p: any = { dim: l }
+                          for (const item of items) {
+                            const raw = (item as any)[dims[di]]
+                            const scaled = raw != null ? raw * sc[di] : 0
+                            p[item.ticker] = mv[dims[di]] > 0 ? (ih[di] ? scaled/mv[dims[di]] : 1 - scaled/mv[dims[di]]) * 100 : 0
+                          }
+                          return p
+                        })
+                      })()
+                }>
+                  <PolarGrid stroke="var(--card-border)" />
+                  <PolarAngleAxis dataKey="dim" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  {(analysisScores ? Object.keys(analysisScores) : items.map(i => i.ticker)).map((t) => (
+                    <Radar key={t} name={t} dataKey={t}
+                      stroke={COMPANY_COLORS[t] || '#3b82f6'}
+                      fill={COMPANY_COLORS[t] || '#3b82f6'} fillOpacity={0.08} strokeWidth={2} />
+                  ))}
+                  <Legend />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            {/* Score bars + sentiment per company */}
+            <div className="space-y-3">
+              {(analysisScores ? Object.keys(analysisScores) : items.map(i => i.ticker)).map((ticker) => {
+                const dims = analysisScores ? ['valuation','profitability','growth','health','momentum'] : ['Val','Prof','Grw','Yld','Size']
+                const dl = analysisScores ? ['Val','Prof','Grw','Hlth','Mom'] : ['Val','Prof','Grw','Yld','Size']
+                const scores = analysisScores ? dims.map(d => (analysisScores[ticker] as any)?.[d] ?? 0) : [50,50,50,50,50]
+                const avg = Math.round(scores.reduce((a,b) => a+b, 0) / scores.length)
+                const sent = analysisSentiment[ticker]
+                return (
+                  <div key={ticker} className="p-3 rounded-lg border border-[var(--card-border)]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-3 h-3 rounded-full" style={{backgroundColor: COMPANY_COLORS[ticker]}} />
+                      <span className="text-sm font-semibold">{ticker}</span>
+                      {sent && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          sent === 'bullish' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                          sent === 'bearish' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>{sent}</span>
+                      )}
+                      <span className="text-lg font-bold font-mono ml-auto">{avg}</span>
                     </div>
-                  )
-                })}
-              </div>
+                    <div className="w-full h-2.5 rounded-full bg-[var(--card-border)] overflow-hidden flex gap-0.5">
+                      {scores.map((s, i) => (
+                        <div key={i} className="h-full rounded-sm cursor-pointer"
+                          style={{ width: `${Math.max(s / dims.length, 3)}%`, backgroundColor: COMPANY_COLORS[ticker] }}
+                          title={`${dl[i]}: ${s}/100`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-1 text-[10px] text-[var(--text-secondary)]">
+                      {dl.map((l, i) => <span key={i}>{l} {Math.round(scores[i])}</span>)}
+                    </div>
+                  </div>
+                )
+              })}
+              {/* Verdict */}
+              {analysisVerdict && (
+                <div className="p-3 rounded-lg bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800">
+                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Verdict</span>
+                  <p className="text-sm font-medium text-[var(--text)] mt-1">{analysisVerdict}</p>
+                </div>
+              )}
             </div>
           </div>
-        )
-      })()}
+        </div>
+      )}
 
       {selected.length >= 2 && (
         <div className="card overflow-hidden">

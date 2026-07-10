@@ -301,7 +301,13 @@ async def compare_analyze(
 4. **Volume & Conviction** — Is the current move backed by volume? Divergence patterns?
 5. **Comparative Setup** — Which has the most attractive risk/reward chart setup RIGHT NOW? Which looks technically vulnerable?
 
-Use ✅ ⚠️ 📌 markers. Be specific: cite RSI values, SMA positions, band touches. No vague 'could go either way.' End with a one-sentence verdict combining both fundamental and technical perspectives."""
+Use ✅ ⚠️ 📌 markers. Be specific: cite RSI values, SMA positions, band touches. No vague 'could go either way.' End with a one-sentence verdict combining both fundamental and technical perspectives.
+
+AFTER your analysis, output a JSON block on its own line with exactly this structure (no markdown fences):
+---SCORES---
+{"scores":{"TICKER":{"valuation":0,"profitability":0,"growth":0,"health":0,"momentum":0},"TICKER2":{...}},"verdict":"one sentence winner","sentiment":{"TICKER":"bullish/neutral/bearish","TICKER2":"..."}}
+---END---
+Where each score is 0-100 relative to peers. Be honest — not everyone can be 80+."""
 
     try:
         provider = settings.llm_backend
@@ -330,9 +336,28 @@ Use ✅ ⚠️ 📌 markers. Be specific: cite RSI values, SMA positions, band t
         logger.error("LLM analysis failed: %s", e)
         analysis = f"Analysis unavailable (LLM error: {e})"
 
+    # Parse structured scores from analysis
+    scores = None
+    verdict = ""
+    sentiment = {}
+    try:
+        import re
+        m = re.search(r'---SCORES---\n(.*?)\n---END---', analysis, re.DOTALL)
+        if m:
+            parsed = json.loads(m.group(1))
+            scores = parsed.get("scores")
+            verdict = parsed.get("verdict", "")
+            sentiment = parsed.get("sentiment", {})
+            analysis = analysis[:m.start()].strip()
+    except Exception as e:
+        logger.debug("Could not parse scores from analysis: %s", e)
+
     return {
         "tickers": ticker_list,
         "analysis": analysis,
+        "scores": scores,
+        "verdict": verdict,
+        "sentiment": sentiment,
         "generated_at": __import__("datetime").datetime.utcnow().isoformat(),
     }
 
