@@ -490,7 +490,53 @@ export function ComparePage() {
               </div>
             )}
             {analysis && (
-              <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap mb-6">{analysis}</div>
+              <div className="mb-6 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Full Analysis — tap to expand sections</h4>
+                  <button
+                    className="text-[10px] text-blue-500 hover:text-blue-600"
+                    onClick={() => {
+                      const all = document.querySelectorAll('[data-section-content]')
+                      const allVisible = Array.from(all).every(el => el.classList.contains('hidden'))
+                      all.forEach(el => el.classList.toggle('hidden', !allVisible))
+                    }}
+                  >
+                    Toggle all
+                  </button>
+                </div>
+                {analysis.split(/(?=## )/).filter(Boolean).map((section, si) => {
+                  const lines = section.trim().split('\n').filter(Boolean)
+                  const heading = lines[0]?.replace(/^##\s*#?\s*/, '').replace(/\*\*/g, '').trim() || 'Section'
+                  const body = lines.slice(1).join('\n').trim()
+                  const hasWarning = body.includes('⚠️')
+                  const hasCheck = body.includes('✅')
+                  // Extract first few key numbers for summary pills
+                  const numbers = body.match(/\d+\.?\d*%/g)?.slice(0, 3) || []
+                  return (
+                    <details key={si} className="card overflow-hidden group open:ring-1 open:ring-blue-200 dark:open:ring-blue-800 transition-all">
+                      <summary className="p-3 cursor-pointer hover:bg-[var(--sidebar-link-hover)] transition-colors flex items-center gap-3 text-sm font-medium text-[var(--text)] list-none [&::-webkit-details-marker]:hidden">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${
+                          hasWarning ? 'bg-red-400' : hasCheck ? 'bg-green-400' : 'bg-slate-300'
+                        }`} />
+                        <span className="flex-1">{heading}</span>
+                        <span className="flex items-center gap-1.5 text-[10px] text-[var(--text-tertiary)]">
+                          {hasCheck && <span className="text-green-500">✓</span>}
+                          {hasWarning && <span className="text-red-400">⚠</span>}
+                          {numbers.slice(0, 2).map((n, ni) => (
+                            <span key={ni} className="font-mono bg-[var(--card-border)] px-1.5 py-0.5 rounded text-[10px]">{n}</span>
+                          ))}
+                        </span>
+                        <svg className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform group-open:rotate-180 shrink-0`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <div className="px-3 pb-3 border-t border-[var(--card-border)] pt-2">
+                        <div className="prose-report text-xs leading-relaxed whitespace-pre-wrap text-[var(--text)]">{body || section}</div>
+                      </div>
+                    </details>
+                  )
+                })}
+              </div>
             )}
 
             {/* Chat section — always visible */}
