@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   BarChart3, Activity, RefreshCw, AlertTriangle, GitCompare,
-  TrendingUp, BarChart as BarIcon,
+  TrendingUp, BarChart as BarIcon, BrainCircuit,
 } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -38,6 +38,8 @@ export function ComparePage() {
   const [selected, setSelected] = useState<string[]>([])
   const [items, setItems] = useState<CompareItem[]>([])
   const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; price: number }[]>>({})
+  const [analysis, setAnalysis] = useState('')
+  const [analysisLoading, setAnalysisLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -65,6 +67,14 @@ export function ComparePage() {
         }
       }
       setPriceHistory(history)
+
+      // Fetch LLM analysis in parallel
+      setAnalysisLoading(true)
+      setAnalysis('')
+      client.get('/compare/analyze', { params: { tickers: selected.join(',') } })
+        .then((r) => setAnalysis(r.data.analysis || ''))
+        .catch(() => setAnalysis(''))
+        .finally(() => setAnalysisLoading(false))
     } catch (e: any) {
       setError(e.response?.data?.detail || 'Comparison failed')
     }
@@ -259,6 +269,29 @@ export function ComparePage() {
 
       {!loading && items.length === 0 && !error && (
         <EmptyState title="Select companies" description="Choose 2–6 companies above to compare fundamentals and performance side-by-side." icon="chart" />
+      )}
+
+      {(analysis || analysisLoading) && (
+        <div className="card overflow-hidden">
+          <div className="card-header">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-purple-500" />
+              AI Analyst Comparison
+            </h3>
+          </div>
+          <div className="card-body">
+            {analysisLoading ? (
+              <div className="space-y-3">
+                <div className="skeleton h-4 w-full" />
+                <div className="skeleton h-4 w-3/4" />
+                <div className="skeleton h-4 w-5/6" />
+                <div className="skeleton h-4 w-2/3" />
+              </div>
+            ) : (
+              <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap">{analysis}</div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
