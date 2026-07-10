@@ -7,6 +7,7 @@ import { PageLoading } from '../components/ui/Loading'
 import type { GeneratedReport } from '../types'
 import { useT } from '../i18n'
 import { ExternalLink } from 'lucide-react'
+import { ReportMarkdown } from '../components/ui/ReportMarkdown'
 
 export function GeneratedReportsPage() {
   const _ = useT()
@@ -78,11 +79,9 @@ export function GeneratedReportsPage() {
               <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{selected.query}</p>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-1">Report</h4>
-              <div className="prose-report bg-gray-50 rounded-lg p-4 max-h-[60vh] overflow-y-auto">
-                {selected.report.split('\n').map((line, i) => (
-                  <p key={i} className="text-sm">{line}</p>
-                ))}
+              <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-1">Report</h4>
+              <div className="bg-[var(--sidebar-hover)] rounded-lg p-4 max-h-[60vh] overflow-y-auto">
+                <ReportMarkdown content={selected.report} />
               </div>
             </div>
           </div>
