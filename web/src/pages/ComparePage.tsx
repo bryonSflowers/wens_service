@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import client from '../api/client'
 import { CompanySelector, COMPANY_COLORS } from '../components/ui/CompanySelector'
+import { CompanyLegend } from '../components/ui/CompanyLegend'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 
@@ -328,7 +329,10 @@ export function ComparePage() {
             <div className="lg:col-span-2 card p-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Multi-Dimension Comparison</span>
-                <span className="text-[10px] text-[var(--text-tertiary)]">0 = weak · 50 = avg · 100 = strong</span>
+                <div className="flex items-center gap-3">
+                  <CompanyLegend tickers={analysisScores ? Object.keys(analysisScores) : items.map(i => i.ticker)} />
+                  <span className="text-[10px] text-[var(--text-tertiary)]">0 = weak · 50 = avg · 100 = strong</span>
+                </div>
               </div>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={
