@@ -169,8 +169,8 @@ CREATE TABLE IF NOT EXISTS monthly_reports (
 """
 
 INSERT_SQL = """
-INSERT INTO monthly_reports (year, month, revenue, expenses, net_income, report_data, notes)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO monthly_reports (ticker, year, month, revenue, expenses, net_income, report_data, notes)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (year, month) DO UPDATE SET
     revenue     = EXCLUDED.revenue,
     expenses    = EXCLUDED.expenses,
@@ -190,6 +190,7 @@ async def main() -> None:
         for r in REPORTS:
             await conn.execute(
                 INSERT_SQL,
+                r.get("ticker", "3045.TW"),
                 r["year"],
                 r["month"],
                 r["revenue"],

@@ -21,7 +21,7 @@ export function Layout() {
       <CommandPalette />
       <Sidebar />
       <div className={`transition-all duration-200 ${collapsed ? 'ml-16' : 'ml-60'}`}>
-        <TickerBar items={[]} />
+        <TickerBar />
         <header className="sticky top-0 z-30 h-14 bg-[var(--card-bg)] border-b border-[var(--card-border)] flex items-center justify-end px-6 gap-3">
           {user && (
             <>

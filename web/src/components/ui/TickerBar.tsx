@@ -1,14 +1,53 @@
+import { useEffect, useState } from 'react'
+
 interface TickerItem {
   ticker: string
   price: number | null
   change?: number
 }
 
-interface TickerBarProps {
-  items: TickerItem[]
-}
+export function TickerBar() {
+  const [items, setItems] = useState<TickerItem[]>([
+    { ticker: '3045.TW', price: null },
+    { ticker: '0050.TW', price: null },
+    { ticker: '2330.TW', price: null },
+  ])
 
-export function TickerBar({ items }: TickerBarProps) {
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/ws/prices`
+    let ws: WebSocket | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout>
+
+    function connect() {
+      try {
+        ws = new WebSocket(wsUrl)
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data)
+            if (msg.type === 'prices') {
+              setItems((prev) =>
+                prev.map((item) => ({
+                  ...item,
+                  price: msg.data[item.ticker] ?? item.price,
+                }))
+              )
+            }
+          } catch {}
+        }
+        ws.onclose = () => {
+          reconnectTimer = setTimeout(connect, 5000)
+        }
+      } catch {}
+    }
+
+    connect()
+    return () => {
+      if (ws) ws.close()
+      clearTimeout(reconnectTimer)
+    }
+  }, [])
+
   if (items.length === 0) return null
 
   const doubled = [...items, ...items]
@@ -22,11 +61,6 @@ export function TickerBar({ items }: TickerBarProps) {
             <span className="font-mono text-slate-300">
               {item.price != null ? `$${item.price.toFixed(2)}` : '--'}
             </span>
-            {item.change != null && (
-              <span className={`font-mono ${item.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {item.change >= 0 ? '▲' : '▼'} {Math.abs(item.change).toFixed(2)}%
-              </span>
-            )}
           </div>
         ))}
       </div>

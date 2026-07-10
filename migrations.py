@@ -235,4 +235,50 @@ MIGRATIONS = [
         created_at  TIMESTAMP DEFAULT NOW()
     );
     """,
+    # 008 — Multi-company: add ticker to monthly_reports
+    """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='monthly_reports' AND column_name='ticker'
+        ) THEN
+            ALTER TABLE monthly_reports ADD COLUMN ticker VARCHAR(16) NOT NULL DEFAULT '3045.TW';
+        END IF;
+    END $$;
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_monthly_reports_ticker ON monthly_reports(ticker, year, month);
+    """,
+    # 009 — Earnings calendar
+    """
+    CREATE TABLE IF NOT EXISTS earnings (
+        id              SERIAL PRIMARY KEY,
+        ticker          VARCHAR(16) NOT NULL,
+        fiscal_year     INTEGER NOT NULL,
+        fiscal_quarter  INTEGER NOT NULL,
+        eps_actual      NUMERIC(12, 4),
+        eps_estimate    NUMERIC(12, 4),
+        revenue_actual  NUMERIC(20, 2),
+        revenue_estimate NUMERIC(20, 2),
+        report_date     DATE,
+        updated_at      TIMESTAMP DEFAULT NOW(),
+        UNIQUE (ticker, fiscal_year, fiscal_quarter)
+    );
+    """,
+    # 010 — Backtest results
+    """
+    CREATE TABLE IF NOT EXISTS backtest_results (
+        id                  SERIAL PRIMARY KEY,
+        user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        ticker              VARCHAR(16) NOT NULL,
+        strategy            VARCHAR(64) NOT NULL,
+        total_return_pct    NUMERIC(10, 4),
+        annualized_return_pct NUMERIC(10, 4),
+        max_drawdown_pct    NUMERIC(10, 4),
+        sharpe_ratio        NUMERIC(10, 4),
+        parameters          JSONB,
+        created_at          TIMESTAMP DEFAULT NOW()
+    );
+    """,
 ]

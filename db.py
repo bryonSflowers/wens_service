@@ -44,15 +44,26 @@ def _serialize_rows(rows: list[asyncpg.Record]) -> list[dict]:
 async def list_available_reports(
     pool: asyncpg.Pool,
     year: Optional[int] = None,
+    ticker: Optional[str] = None,
 ) -> list[dict]:
-    if year:
+    if year and ticker:
         rows = await pool.fetch(
-            "SELECT year, month FROM monthly_reports WHERE year = $1 ORDER BY year, month",
+            "SELECT year, month, ticker FROM monthly_reports WHERE year = $1 AND ticker = $2 ORDER BY year, month",
+            year, ticker.upper(),
+        )
+    elif year:
+        rows = await pool.fetch(
+            "SELECT year, month, ticker FROM monthly_reports WHERE year = $1 ORDER BY year, month",
             year,
+        )
+    elif ticker:
+        rows = await pool.fetch(
+            "SELECT year, month, ticker FROM monthly_reports WHERE ticker = $1 ORDER BY year DESC, month DESC",
+            ticker.upper(),
         )
     else:
         rows = await pool.fetch(
-            "SELECT year, month FROM monthly_reports ORDER BY year DESC, month DESC"
+            "SELECT year, month, ticker FROM monthly_reports ORDER BY year DESC, month DESC"
         )
     return [_serialize_row(r) for r in rows]
 
@@ -61,12 +72,18 @@ async def get_monthly_report(
     pool: asyncpg.Pool,
     year: int,
     month: int,
+    ticker: Optional[str] = None,
 ) -> Optional[dict]:
-    row = await pool.fetchrow(
-        "SELECT * FROM monthly_reports WHERE year = $1 AND month = $2",
-        year,
-        month,
-    )
+    if ticker:
+        row = await pool.fetchrow(
+            "SELECT * FROM monthly_reports WHERE year = $1 AND month = $2 AND ticker = $3",
+            year, month, ticker.upper(),
+        )
+    else:
+        row = await pool.fetchrow(
+            "SELECT * FROM monthly_reports WHERE year = $1 AND month = $2",
+            year, month,
+        )
     return _serialize_row(row) if row else None
 
 
@@ -76,19 +93,29 @@ async def get_reports_range(
     start_month: int,
     end_year: int,
     end_month: int,
+    ticker: Optional[str] = None,
 ) -> list[dict]:
-    rows = await pool.fetch(
-        """
-        SELECT * FROM monthly_reports
-        WHERE (year > $1 OR (year = $1 AND month >= $2))
-          AND (year < $3 OR (year = $3 AND month <= $4))
-        ORDER BY year, month
-        """,
-        start_year,
-        start_month,
-        end_year,
-        end_month,
-    )
+    if ticker:
+        rows = await pool.fetch(
+            """
+            SELECT * FROM monthly_reports
+            WHERE ticker = $1
+              AND (year > $2 OR (year = $2 AND month >= $3))
+              AND (year < $4 OR (year = $4 AND month <= $5))
+            ORDER BY year, month
+            """,
+            ticker.upper(), start_year, start_month, end_year, end_month,
+        )
+    else:
+        rows = await pool.fetch(
+            """
+            SELECT * FROM monthly_reports
+            WHERE (year > $1 OR (year = $1 AND month >= $2))
+              AND (year < $3 OR (year = $3 AND month <= $4))
+            ORDER BY year, month
+            """,
+            start_year, start_month, end_year, end_month,
+        )
     return [_serialize_row(r) for r in rows]
 
 
@@ -102,6 +129,7 @@ ALLOWED_TABLES = {
 ALLOWED_COLUMNS = {
     "id", "user_id", "filename", "file_type", "word_count", "created_at",
     "year", "month", "revenue", "expenses", "net_income", "report_data", "notes",
+    "ticker",
     "*", "h.*",
 }
 

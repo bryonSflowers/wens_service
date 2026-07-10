@@ -11,7 +11,7 @@ from typing import Any
 
 import yfinance as yf 
 
-TICKER = "3045.TW"
+DEFAULT_TICKER = "3045.TW"
 log = logging.getLogger(__name__)
 
 
@@ -37,16 +37,16 @@ def _parse_news(raw: list) -> list[dict]:
     return out
 
 
-def _fetch_sync(year: int, month: int) -> dict[str, Any]:
+def _fetch_sync(ticker: str, year: int, month: int) -> dict[str, Any]:
     """Synchronous yfinance calls — always run via run_in_executor."""
-    tk = yf.Ticker(TICKER)
+    tk = yf.Ticker(ticker)
 
     start = date(year, month, 1)
     end = date(year, month, calendar.monthrange(year, month)[1]) + timedelta(days=1)
 
     hist = tk.history(start=start.isoformat(), end=end.isoformat(), interval="1d")
 
-    data: dict[str, Any] = {"ticker": TICKER, "year": year, "month": month}
+    data: dict[str, Any] = {"ticker": ticker, "year": year, "month": month}
 
     if not hist.empty:
         data.update({
@@ -64,6 +64,7 @@ def _fetch_sync(year: int, month: int) -> dict[str, Any]:
         })
 
     info = tk.info or {}
+    data["ticker"] = ticker
     data["company_snapshot"] = {
         k: info.get(k) for k in (
             "marketCap", "trailingPE", "forwardPE", "priceToBook",
@@ -78,24 +79,24 @@ def _fetch_sync(year: int, month: int) -> dict[str, Any]:
     return data
 
 
-async def sync_month(pool, year: int, month: int) -> dict[str, Any]:
+async def sync_month(pool, year: int, month: int, ticker: str = DEFAULT_TICKER) -> dict[str, Any]:
     """Fetch market data and merge it into monthly_reports.report_data."""
     loop = asyncio.get_event_loop()
-    market_data = await loop.run_in_executor(None, _fetch_sync, year, month)
+    market_data = await loop.run_in_executor(None, _fetch_sync, ticker, year, month)
 
-    payload = json.dumps({"market_data": market_data})
+    payload = json.dumps({"market_data": market_data, "ticker": ticker})
 
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO monthly_reports (year, month, report_data)
-            VALUES ($1, $2, $3::jsonb)
-            ON CONFLICT (year, month) DO UPDATE
+            INSERT INTO monthly_reports (ticker, year, month, report_data)
+            VALUES ($1, $2, $3, $4::jsonb)
+            ON CONFLICT (year, month, ticker) DO UPDATE
                 SET report_data =
-                    COALESCE(monthly_reports.report_data, '{}'::jsonb) || $3::jsonb
+                    COALESCE(monthly_reports.report_data, '{}'::jsonb) || $4::jsonb
             """,
-            year, month, payload,
+            ticker, year, month, payload,
         )
 
-    log.info("Market data synced for %d-%02d", year, month)
+    log.info("Market data synced for %s %d-%02d", ticker, year, month)
     return market_data

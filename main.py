@@ -38,6 +38,10 @@ from routers import (
     watchlist,
     screener,
     documents,
+    earnings,
+    backtest,
+    export_pdf,
+    ws_prices,
 )
 
 load_dotenv()
@@ -62,7 +66,7 @@ def _previous_month() -> tuple[int, int]:
 async def _scheduled_sync() -> None:
     year, month = _previous_month()
     pool = await db.get_pool()
-    await market_sync.sync_month(pool, year, month)
+    await market_sync.sync_month(pool, year, month, market_sync.DEFAULT_TICKER)
 
 
 @asynccontextmanager
@@ -134,6 +138,10 @@ app.include_router(chart.router)
 app.include_router(watchlist.router)
 app.include_router(screener.router)
 app.include_router(documents.router)
+app.include_router(earnings.router)
+app.include_router(backtest.router)
+app.include_router(export_pdf.router)
+app.include_router(ws_prices.router)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -164,7 +172,7 @@ async def generate_report_legacy(request: ReportRequest):
 
 
 @app.post("/sync-market-data")
-async def sync_market_data(year: Optional[int] = None, month: Optional[int] = None):
+async def sync_market_data(year: Optional[int] = None, month: Optional[int] = None, ticker: str = market_sync.DEFAULT_TICKER):
     if (year is None) != (month is None):
         raise HTTPException(400, "Provide both year and month, or neither.")
     if year is None:
@@ -173,14 +181,14 @@ async def sync_market_data(year: Optional[int] = None, month: Optional[int] = No
         raise HTTPException(400, "month must be 1-12.")
     pool = await db.get_pool()
     try:
-        data = await market_sync.sync_month(pool, year, month)
+        data = await market_sync.sync_month(pool, year, month, ticker)
     except Exception as exc:
         raise HTTPException(500, str(exc))
     return {
         "synced": True,
         "year": year,
         "month": month,
-        "ticker": market_sync.TICKER,
+        "ticker": ticker,
         "price_change_pct": data.get("price_change_pct"),
         "close": data.get("close"),
         "trading_days": data.get("trading_days"),
