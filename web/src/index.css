@@ -136,7 +136,11 @@ body {
 .card-body { padding: 1.5rem; }
 
 /* ── Buttons ── */
-.btn {
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -149,7 +153,11 @@ body {
   cursor: pointer;
   letter-spacing: -0.01em;
 }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-ghost:disabled,
+.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-primary {
   background: var(--accent);
   color: white;
