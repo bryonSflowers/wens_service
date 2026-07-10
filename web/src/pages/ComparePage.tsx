@@ -77,7 +77,10 @@ export function ComparePage() {
       setAnalysis('')
       setChatMessages([])
       client.get('/compare/analyze', { params: { tickers: selected.join(',') } })
-        .then((r) => setAnalysis(r.data.analysis || ''))
+        .then((r) => {
+          setAnalysis(r.data.analysis || '')
+          setChatMessages([{ role: 'assistant', content: 'Analysis complete. Ask me anything about these companies — valuations, risks, competitive dynamics, or specific metrics you want to compare.' }])
+        })
         .catch(() => setAnalysis(''))
         .finally(() => setAnalysisLoading(false))
     } catch (e: any) {
@@ -320,8 +323,15 @@ export function ComparePage() {
               <>
                 <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap mb-6">{analysis}</div>
 
-                {/* Chat messages */}
-                <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
+                {/* Divider + chat header */}
+                <div className="border-t border-[var(--card-border)] pt-4 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BrainCircuit className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm font-semibold text-[var(--text)]">Ask Follow-up Questions</span>
+                  </div>
+
+                  {/* Chat messages */}
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
                   {chatMessages.map((msg, i) => (
                     <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                       <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
@@ -345,21 +355,22 @@ export function ComparePage() {
                     </div>
                   )}
                   <div ref={chatRef} />
-                </div>
+                  </div>
 
-                {/* Chat input */}
-                <div className="flex gap-2 border-t border-[var(--card-border)] pt-3">
-                  <input
-                    className="input flex-1"
-                    placeholder="Ask a follow-up about these companies..."
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
-                    disabled={chatLoading}
-                  />
-                  <button className="btn-primary" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
-                    <Send className="w-4 h-4" />
-                  </button>
+                  {/* Chat input */}
+                  <div className="flex gap-2 pt-3">
+                    <input
+                      className="input flex-1"
+                      placeholder="Ask a follow-up about these companies..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
+                      disabled={chatLoading}
+                    />
+                    <button className="btn-primary" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </>
             )}
