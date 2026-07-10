@@ -175,7 +175,7 @@ body {
 .btn-danger { background: var(--red); color: white; border: none; }
 .btn-danger:hover { background: #b91c1c; }
 .btn-ghost { background: none; border: none; color: var(--text-secondary); }
-.btn-ghost:hover { background: var(--sidebar-hover); color: var(--text); }
+.btn-ghost:hover { background: rgba(128,128,128,0.12); color: var(--text); }
 
 /* ── Inputs ── */
 .input {
