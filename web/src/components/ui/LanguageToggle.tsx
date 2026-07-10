@@ -1,21 +1,29 @@
 import { useLangStore } from '../../store/language'
-import { Languages } from 'lucide-react'
+
+const LANGS = [
+  { value: 'en',    label: 'EN' },
+  { value: 'zh-TW', label: '繁中' },
+] as const
 
 export function LanguageToggle() {
   const lang = useLangStore((s) => s.lang)
   const setLang = useLangStore((s) => s.setLang)
 
   return (
-    <div className="flex items-center gap-1">
-      <Languages className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-      <select
-        value={lang}
-        onChange={(e) => setLang(e.target.value as 'en' | 'zh-TW')}
-        className="text-xs bg-transparent text-[var(--text-secondary)] border-none outline-none cursor-pointer appearance-none"
-      >
-        <option value="en">EN</option>
-        <option value="zh-TW">繁中</option>
-      </select>
+    <div className="flex items-center rounded-md border border-[var(--card-border)] overflow-hidden">
+      {LANGS.map(({ value, label }) => (
+        <button
+          key={value}
+          onClick={() => setLang(value)}
+          className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
+            lang === value
+              ? 'bg-[var(--accent)] text-white'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--sidebar-hover)]'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   )
 }
