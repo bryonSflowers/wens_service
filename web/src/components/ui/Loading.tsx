@@ -1,17 +1,29 @@
 export function Loading() {
   return (
-    <div className="flex items-center justify-center py-12">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+    <div className="space-y-4 p-4">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="skeleton h-12 w-full" />
+      ))}
     </div>
   )
 }
 
 export function PageLoading() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-        <p className="text-sm text-gray-500">Loading...</p>
+    <div className="space-y-6 p-6">
+      <div className="skeleton h-8 w-64" />
+      <div className="skeleton h-4 w-96" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="stat-card space-y-3">
+            <div className="skeleton h-4 w-24" />
+            <div className="skeleton h-8 w-32" />
+          </div>
+        ))}
+      </div>
+      <div className="card p-6 space-y-4">
+        <div className="skeleton h-5 w-48" />
+        <div className="skeleton h-[300px] w-full" />
       </div>
     </div>
   )

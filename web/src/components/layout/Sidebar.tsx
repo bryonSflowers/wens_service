@@ -54,7 +54,7 @@ function NavGroup({ label, items, collapsed }: { label: string; items: typeof ma
 
   return (
     <div className="pt-3 first:pt-0">
-      <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
       {items.map((item) => (
         <NavLink
           key={item.to}
@@ -77,19 +77,16 @@ export function Sidebar() {
   const toggle = useSidebarStore((s) => s.toggle)
 
   return (
-    <aside className={`sidebar fixed left-0 top-0 h-screen bg-white border-r border-gray-200 z-40 transition-all duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
-      <div className="flex items-center justify-between h-16 px-4 border-b">
+    <aside className={`sidebar fixed left-0 top-0 h-screen z-40 transition-all duration-200 bg-gradient-to-b from-slate-900 to-blue-950 ${collapsed ? 'w-16' : 'w-60'}`}>
+      <div className="flex items-center justify-between h-14 px-4 border-b border-slate-700/50">
         {!collapsed && (
-          <span className="text-lg font-bold text-blue-700 tracking-tight">Wens</span>
+          <span className="text-lg font-bold text-blue-400 tracking-tight">Wens</span>
         )}
-        <button
-          onClick={toggle}
-          className="btn-ghost p-1.5 rounded-lg"
-        >
+        <button onClick={toggle} className="btn-ghost p-1.5 rounded-lg text-slate-400 hover:text-white">
           {collapsed ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
         </button>
       </div>
-      <nav className="p-2 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 64px)' }}>
+      <nav className="p-2 space-y-1 overflow-y-auto" style={{ height: 'calc(100vh - 56px)' }}>
         <NavGroup label="Overview" items={mainNavItems} collapsed={collapsed} />
         <NavGroup label="Analytics" items={analyticsNavItems} collapsed={collapsed} />
         <NavGroup label="Reports" items={dataNavItems} collapsed={collapsed} />
