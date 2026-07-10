@@ -75,12 +75,8 @@ export function ComparePage() {
       // Fetch LLM analysis in parallel
       setAnalysisLoading(true)
       setAnalysis('')
-      setChatMessages([])
       client.get('/compare/analyze', { params: { tickers: selected.join(',') } })
-        .then((r) => {
-          setAnalysis(r.data.analysis || '')
-          setChatMessages([{ role: 'assistant', content: 'Analysis complete. Ask me anything about these companies — valuations, risks, competitive dynamics, or specific metrics you want to compare.' }])
-        })
+        .then((r) => setAnalysis(r.data.analysis || ''))
         .catch(() => setAnalysis(''))
         .finally(() => setAnalysisLoading(false))
     } catch (e: any) {
@@ -302,78 +298,81 @@ export function ComparePage() {
         <EmptyState title="Select companies" description="Choose 2–6 companies above to compare fundamentals and performance side-by-side." icon="chart" />
       )}
 
-      {(analysis || analysisLoading) && (
+      {selected.length >= 2 && (
         <div className="card overflow-hidden">
           <div className="card-header">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <BrainCircuit className="w-4 h-4 text-purple-500" />
               AI Analyst Comparison
+              {!analysisLoading && !analysis && <span className="text-xs font-normal text-[var(--text-secondary)] ml-2">Click Compare to auto-generate analysis, or ask a question below</span>}
             </h3>
           </div>
           <div className="card-body">
-            {analysisLoading ? (
-              <div className="space-y-3">
+            {/* Analysis section */}
+            {analysisLoading && (
+              <div className="space-y-3 mb-6">
                 <div className="skeleton h-4 w-full" />
                 <div className="skeleton h-4 w-3/4" />
                 <div className="skeleton h-4 w-5/6" />
                 <div className="skeleton h-4 w-2/3" />
                 <div className="skeleton h-4 w-1/2" />
               </div>
-            ) : (
-              <>
-                <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap mb-6">{analysis}</div>
+            )}
+            {analysis && (
+              <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap mb-6">{analysis}</div>
+            )}
 
-                {/* Divider + chat header */}
-                <div className="border-t border-[var(--card-border)] pt-4 mb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BrainCircuit className="w-4 h-4 text-purple-500" />
-                    <span className="text-sm font-semibold text-[var(--text)]">Ask Follow-up Questions</span>
-                  </div>
+            {/* Chat section — always visible */}
+            <div className={analysis ? 'border-t border-[var(--card-border)] pt-4' : ''}>
+              <div className="flex items-center gap-2 mb-3">
+                <BrainCircuit className="w-4 h-4 text-purple-500" />
+                <span className="text-sm font-semibold text-[var(--text)]">
+                  {analysis ? 'Ask Follow-up Questions' : `Ask about ${selected.map(t => t.replace('.TW','')).join(', ')}`}
+                </span>
+              </div>
 
-                  {/* Chat messages */}
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {chatMessages.map((msg, i) => (
-                    <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-                      <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
-                        msg.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-br-md'
-                          : 'bg-[var(--sidebar-link-hover)] text-[var(--text)] rounded-bl-md'
-                      }`}>
-                        <div className="whitespace-pre-wrap">{msg.content}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {chatLoading && (
-                    <div className="flex gap-2">
-                      <div className="max-w-[80%] rounded-xl rounded-bl-md px-4 py-2.5 text-sm bg-[var(--sidebar-link-hover)]">
-                        <div className="flex gap-1">
-                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatRef} />
-                  </div>
-
-                  {/* Chat input */}
-                  <div className="flex gap-2 pt-3">
-                    <input
-                      className="input flex-1"
-                      placeholder="Ask a follow-up about these companies..."
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
-                      disabled={chatLoading}
-                    />
-                    <button className="btn-primary" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
-                      <Send className="w-4 h-4" />
-                    </button>
+              {/* Chat messages */}
+              <div className="space-y-3 max-h-80 overflow-y-auto mb-3">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                  <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
+                    msg.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-br-md'
+                      : 'bg-[var(--sidebar-link-hover)] text-[var(--text)] rounded-bl-md'
+                  }`}>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
                   </div>
                 </div>
-              </>
-            )}
+              ))}
+              {chatLoading && (
+                <div className="flex gap-2">
+                  <div className="max-w-[80%] rounded-xl rounded-bl-md px-4 py-2.5 text-sm bg-[var(--sidebar-link-hover)]">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatRef} />
+              </div>
+
+              {/* Chat input */}
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="Ask about these companies..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
+                  disabled={chatLoading}
+                />
+                <button className="btn-primary" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
