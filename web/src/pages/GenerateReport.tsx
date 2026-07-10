@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { FileText, Send, Loader2, Copy, Check, Sparkles, Bot } from 'lucide-react'
 import { useT } from '../i18n'
 import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { ReportMarkdown } from '../components/ui/ReportMarkdown'
+import client from '../api/client'
 
 const SUGGESTIONS = [
   '分析最近一季的營收趨勢與月增率變化',
@@ -18,15 +19,8 @@ export function GenerateReportPage() {
   const [ticker, setTicker] = useState('3045.TW')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
-  const [streaming, setStreaming] = useState('')
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [streaming, report])
 
   const handleGenerate = async (q?: string) => {
     const text = q || query
@@ -34,78 +28,25 @@ export function GenerateReportPage() {
     setLoading(true)
     setError('')
     setReport('')
-    setStreaming('')
-
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE || '')
-    const token = sessionStorage.getItem('token')
-    const apiKey = sessionStorage.getItem('api_key')
-
     try {
-      const res = await fetch(`${API_BASE}/llm/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(apiKey ? { 'X-API-Key': apiKey } : {}),
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: 'user', content: `Generate a detailed financial report for ${ticker}. ${text}\n\nUse specific data from the database. Structure the report with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations.` },
-          ],
-          max_tokens: 8192,
-          stream: true,
-        }),
-        signal: controller.signal,
+      const { data } = await client.post('/reports/generate', {
+        query: `Generate a detailed financial report for ${ticker}. ${text}\n\nUse specific data from the database. Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations.`,
       })
-
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let fullText = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') continue
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.type === 'content' && parsed.text) {
-              fullText += parsed.text
-              setStreaming(fullText)
-            }
-          } catch {}
-        }
-      }
-      setReport(fullText)
-      setStreaming('')
+      setReport(data.report || '')
+      if (!data.report) setError('Empty response')
     } catch (err: any) {
-      if (err.name === 'AbortError') return
-      setError(err.message || 'Failed to generate')
+      const msg = err?.response?.data?.detail || err.message || 'Failed to generate'
+      setError(msg)
     } finally {
       setLoading(false)
-      setStreaming('')
-      abortRef.current = null
     }
   }
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(report || streaming)
+    await navigator.clipboard.writeText(report)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
-
-  const displayContent = streaming || report
 
   return (
     <div className="space-y-6">
@@ -157,16 +98,24 @@ export function GenerateReportPage() {
         </div>
       )}
 
-      {/* Streaming / Report output */}
-      {(displayContent || loading) && (
+      {/* Report output */}
+      {(report || loading) && (
         <div className="card">
           <div className="card-header flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-500" />
+              <div className="relative">
+                <FileText className="w-4 h-4 text-blue-500" />
+                {loading && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-400 animate-ping" />}
+              </div>
               <span className="font-semibold text-sm">{ticker} Report</span>
-              {loading && <span className="text-xs text-[var(--text-secondary)] animate-pulse">generating...</span>}
+              {loading && (
+                <span className="flex items-center gap-1.5 text-[11px] text-blue-500 font-medium ml-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  Generating
+                </span>
+              )}
             </div>
-            {displayContent && (
+            {report && !loading && (
               <div className="flex gap-2">
                 <button className="btn-secondary text-xs" onClick={handleCopy}>
                   {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -176,18 +125,18 @@ export function GenerateReportPage() {
             )}
           </div>
           <div className="card-body max-h-[70vh] overflow-y-auto">
-            {!displayContent && loading && (
-              <div className="flex items-center gap-3 py-8 justify-center">
-                <Bot className="w-8 h-8 text-blue-400 animate-pulse" />
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            {loading && !report && (
+              <div className="flex flex-col items-center gap-3 py-16">
+                <Bot className="w-12 h-12 text-blue-400 animate-pulse" />
+                <div className="flex gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
+                <p className="text-sm text-[var(--text-secondary)] animate-pulse">Generating report...</p>
               </div>
             )}
-            {displayContent && <ReportMarkdown content={displayContent} />}
-            <div ref={bottomRef} />
+            {report && <ReportMarkdown content={report} />}
           </div>
         </div>
       )}
