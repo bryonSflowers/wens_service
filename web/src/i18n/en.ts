@@ -316,6 +316,15 @@ const en = {
   'lang.switch': '語言',
   'lang.en': 'English',
   'lang.zhTW': '繁體中文',
+
+  // Financial Dashboard
+  'fundash.title': 'Financial Comparison',
+  'fundash.subtitle': 'Taiwan Mobile vs Chunghwa vs Far EasTone — Key Financial Metrics',
+  'fundash.metricLabel': 'Metric',
+  'fundash.allMetrics': 'All Metrics',
+  'fundash.latestPeriod': 'latest fiscal period',
+  'fundash.selectMetric': 'Select a metric above to view comparison',
+  'fundash.noData': 'No financial data available.',
 } satisfies Record<string, string>
 
 export type TranslationKeys = keyof typeof en

@@ -294,6 +294,14 @@ const zhTW: Record<string, string> = {
   'lang.switch': 'Language',
   'lang.en': 'English',
   'lang.zhTW': '繁體中文',
+
+  'fundash.title': '財務比較儀表板',
+  'fundash.subtitle': '台灣大 vs 中華 vs 遠傳 — 關鍵財務指標比較',
+  'fundash.metricLabel': '指標',
+  'fundash.allMetrics': '所有指標',
+  'fundash.latestPeriod': '最新會計期間',
+  'fundash.selectMetric': '請選擇上方指標以檢視比較',
+  'fundash.noData': '暫無財務資料。',
 }
 
 export default zhTW
