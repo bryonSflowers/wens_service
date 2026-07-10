@@ -10,6 +10,7 @@ const PAGES = [
   { path: '/fundamentals', label: 'Fundamentals', keywords: 'fundamentals pe ratio valuation' },
   { path: '/chart', label: 'Stock Chart', keywords: 'chart candlestick ohlcv technical' },
   { path: '/screener', label: 'Screener', keywords: 'screener filter stocks scan' },
+  { path: '/compare', label: 'Compare', keywords: 'compare comparison competitors peers' },
   { path: '/reports', label: 'Reports', keywords: 'reports monthly financial' },
   { path: '/reports/generate', label: 'Generate Report', keywords: 'generate ai report llm' },
   { path: '/templates', label: 'Templates', keywords: 'templates saved queries' },

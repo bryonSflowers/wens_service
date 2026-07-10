@@ -64,6 +64,7 @@ def _parse_word(raw: bytes) -> str:
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    ticker: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user),
 ):
     ext = ("." + file.filename.rsplit(".", 1)[-1]).lower() if "." in (file.filename or "") else ""
@@ -90,11 +91,13 @@ async def upload_document(
         raise HTTPException(400, f"Failed to parse file: {str(e)}")
     word_count = len(content.split())
     pool = await db_service.get_pool()
+    doc_ticker = ticker.upper() if ticker else None
     row = await pool.fetchrow(
-        "INSERT INTO uploaded_docs (user_id, filename, file_type, content, raw_tables, word_count, metadata) "
-        "VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb) RETURNING *",
+        "INSERT INTO uploaded_docs (user_id, filename, file_type, content, raw_tables, word_count, metadata, ticker) "
+        "VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7::jsonb, $8) RETURNING *",
         current_user["id"], file.filename, file_type, content, raw_tables, word_count,
         json.dumps({"uploaded_at": datetime.utcnow().isoformat()}),
+        doc_ticker,
     )
     await db_service.log_audit(pool, current_user["id"], "document.upload", "uploaded_docs", str(row["id"]))
     return db_service._serialize_row(row)
@@ -109,7 +112,7 @@ async def list_documents(
     pool = await db_service.get_pool()
     return await db_service.get_paginated(
         pool, "uploaded_docs",
-        columns="id, user_id, filename, file_type, raw_tables, word_count, metadata, created_at",
+        columns="id, user_id, filename, file_type, raw_tables, word_count, metadata, created_at, ticker",
         where="user_id = $1",
         params=[current_user["id"]],
         order_by="created_at DESC",

@@ -21,6 +21,7 @@ export function DocumentsPage() {
   const [docs, setDocs] = useState<UploadedDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadTicker, setUploadTicker] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [selected, setSelected] = useState<UploadedDoc | null>(null)
   const [selectLoading, setSelectLoading] = useState(false)
@@ -64,7 +65,7 @@ export function DocumentsPage() {
     setUploading(true)
     setStatus(null)
     try {
-      await documentsApi.upload(file)
+      await documentsApi.upload(file, uploadTicker || undefined)
       setStatus({ ok: true, msg: `${file.name} ${_('doc.uploadSuccess')}` })
       load()
     } catch (e: any) {
@@ -108,22 +109,31 @@ export function DocumentsPage() {
       </div>
 
       <div
-        className={`card p-8 text-center cursor-pointer transition-all ${
+        className={`card p-6 text-center transition-all ${
           dragOver ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-2 border-dashed border-[var(--card-border)]'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        onClick={() => fileRef.current?.click()}
       >
-        <input ref={fileRef} type="file" hidden accept={ACCEPTED} multiple onChange={handleFileSelect} />
-        <Upload className="w-10 h-10 mx-auto mb-3 text-[var(--text-secondary)]" />
-        <p className="text-sm font-medium text-[var(--text)]">
-          {uploading ? _('doc.uploading') : dragOver ? _('doc.uploadZoneDrag') : _('doc.uploadZone')}
-        </p>
-        <p className="text-xs text-[var(--text-secondary)] mt-1">{_('doc.supportedFormats')}</p>
+        <div className="flex gap-4 items-start mb-4">
+          <div className="flex-1 text-left">
+            <label className="label">{_('portfolio.ticker')}</label>
+            <input className="input max-w-xs" placeholder="3045.TW" value={uploadTicker}
+              onChange={(e) => setUploadTicker(e.target.value)}
+              onClick={(e) => e.stopPropagation()} />
+          </div>
+          <div className="flex-1 pt-5" onClick={() => fileRef.current?.click()}>
+            <input ref={fileRef} type="file" hidden accept={ACCEPTED} multiple onChange={handleFileSelect} />
+            <Upload className="w-10 h-10 mx-auto mb-2 text-[var(--text-secondary)]" />
+            <p className="text-sm font-medium text-[var(--text)]">
+              {uploading ? _('doc.uploading') : dragOver ? _('doc.uploadZoneDrag') : _('doc.uploadZone')}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">{_('doc.supportedFormats')}</p>
+          </div>
+        </div>
         {uploading && (
-          <div className="mt-4 flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
             <span className="text-sm text-[var(--text-secondary)]">{_('doc.processing')}</span>
           </div>

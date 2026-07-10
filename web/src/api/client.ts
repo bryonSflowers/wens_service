@@ -220,9 +220,10 @@ export const alertsApi = {
 
 // ===== Documents API =====
 export const documentsApi = {
-  upload: (file: File) => {
+  upload: (file: File, ticker?: string) => {
     const form = new FormData()
     form.append('file', file)
+    if (ticker) form.append('ticker', ticker)
     return client.post('/documents/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })

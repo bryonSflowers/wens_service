@@ -324,4 +324,19 @@ MIGRATIONS = [
     """
     CREATE INDEX IF NOT EXISTS idx_news_sentiment_ticker ON news_sentiment(ticker, published_at);
     """,
+    # 014 — Add ticker to uploaded_docs
+    """
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name='uploaded_docs' AND column_name='ticker'
+        ) THEN
+            ALTER TABLE uploaded_docs ADD COLUMN ticker VARCHAR(16);
+        END IF;
+    END $$;
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_uploaded_docs_ticker ON uploaded_docs(ticker);
+    """,
 ]

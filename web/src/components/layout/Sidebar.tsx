@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FileText, MessageSquare, Database,
   FileStack, FileInput, Settings, Shield, ChevronLeft, Menu,
   Briefcase, Activity, BarChart3, Eye, TrendingUp, Search,
-  Upload,
+  Upload, GitCompare,
 } from 'lucide-react'
 import { useSidebarStore } from '../../store/sidebar'
 import { useT } from '../../i18n'
@@ -19,6 +19,7 @@ const analyticsNavItems = [
   { to: '/fundamentals', icon: BarChart3, label: 'sidebar.fundamentals' },
   { to: '/chart', icon: TrendingUp, label: 'sidebar.chart' },
   { to: '/screener', icon: Search, label: 'sidebar.screener' },
+  { to: '/compare', icon: GitCompare, label: 'Compare' },
 ]
 
 const dataNavItems = [
