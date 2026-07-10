@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Upload, FileText, Trash2, FileSpreadsheet, AlertCircle, CheckCircle, X, Building2 } from 'lucide-react'
+import { Upload, FileText, Trash2, FileSpreadsheet, AlertCircle, CheckCircle, X } from 'lucide-react'
 import { useT } from '../i18n'
 import { documentsApi } from '../api/client'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Pagination } from '../components/ui/Pagination'
-import { TICKER_NAMES } from '../utils/tickers'
+import { TickerDropdown } from '../components/ui/TickerDropdown'
 import type { UploadedDoc } from '../types'
 
 const ACCEPTED = '.txt,.csv,.xlsx,.xls,.docx,.doc'
@@ -118,18 +118,8 @@ export function DocumentsPage() {
         onDrop={handleDrop}
       >
         <div className="flex gap-4 items-start mb-4">
-          <div className="flex-1 text-left">
-            <label className="label flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> Company / Ticker</label>
-            <input className="input max-w-xs" list="ticker-suggestions"
-              placeholder="Select or type a ticker..."
-              value={uploadTicker}
-              onChange={(e) => setUploadTicker(e.target.value)}
-              onClick={(e) => e.stopPropagation()} />
-            <datalist id="ticker-suggestions">
-              {Object.entries(TICKER_NAMES).map(([ticker, name]) => (
-                <option key={ticker} value={ticker}>{name} ({ticker})</option>
-              ))}
-            </datalist>
+          <div className="flex-1 text-left" onClick={(e) => e.stopPropagation()}>
+            <TickerDropdown value={uploadTicker} onChange={setUploadTicker} />
           </div>
           <div className="flex-1 pt-5" onClick={() => fileRef.current?.click()}>
             <input ref={fileRef} type="file" hidden accept={ACCEPTED} multiple onChange={handleFileSelect} />
