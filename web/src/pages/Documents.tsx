@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
-import { Upload, FileText, Trash2, FileSpreadsheet, AlertCircle, CheckCircle, X } from 'lucide-react'
-import { documentsApi } from '../api/client'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Upload, FileText, Trash2, FileSpreadsheet, AlertCircle, CheckCircle, X, Building2 } from 'lucide-react'
 import { useT } from '../i18n'
+import { documentsApi } from '../api/client'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Pagination } from '../components/ui/Pagination'
+import { TICKER_NAMES } from '../utils/tickers'
 import type { UploadedDoc } from '../types'
 
 const ACCEPTED = '.txt,.csv,.xlsx,.xls,.docx,.doc'
@@ -118,10 +119,17 @@ export function DocumentsPage() {
       >
         <div className="flex gap-4 items-start mb-4">
           <div className="flex-1 text-left">
-            <label className="label">{_('portfolio.ticker')}</label>
-            <input className="input max-w-xs" placeholder="3045.TW" value={uploadTicker}
+            <label className="label flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" /> Company / Ticker</label>
+            <input className="input max-w-xs" list="ticker-suggestions"
+              placeholder="Select or type a ticker..."
+              value={uploadTicker}
               onChange={(e) => setUploadTicker(e.target.value)}
               onClick={(e) => e.stopPropagation()} />
+            <datalist id="ticker-suggestions">
+              {Object.entries(TICKER_NAMES).map(([ticker, name]) => (
+                <option key={ticker} value={ticker}>{name} ({ticker})</option>
+              ))}
+            </datalist>
           </div>
           <div className="flex-1 pt-5" onClick={() => fileRef.current?.click()}>
             <input ref={fileRef} type="file" hidden accept={ACCEPTED} multiple onChange={handleFileSelect} />
@@ -168,6 +176,9 @@ export function DocumentsPage() {
                     <p className="text-xs text-[var(--text-secondary)]">
                       {d.word_count.toLocaleString()} {_('common.words')} <span className="mx-1">·</span> {formatSize(d.word_count)}
                     </p>
+                    {d.ticker && (
+                      <span className="badge badge-blue mt-1 text-[10px]">{d.ticker}</span>
+                    )}
                   </div>
                 </button>
               ))}
@@ -198,7 +209,8 @@ export function DocumentsPage() {
                   {fileIcon(selected.file_type)}
                   <div>
                     <h3 className="font-semibold text-sm text-[var(--text)]">{selected.filename}</h3>
-                    <p className="text-xs text-[var(--text-secondary)]">
+                    <p className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
+                      {selected.ticker && <span className="badge badge-blue text-[10px]">{selected.ticker}</span>}
                       {selected.word_count.toLocaleString()} {_('common.words')} <span className="mx-1">·</span>
                       {_('common.uploaded')} {new Date(selected.created_at).toLocaleString()}
                     </p>

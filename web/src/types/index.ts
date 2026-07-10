@@ -331,6 +331,7 @@ export interface UploadedDoc {
   word_count: number
   metadata: Record<string, unknown> | null
   created_at: string
+  ticker?: string | null
 }
 
 // ===== Common =====
