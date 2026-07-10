@@ -8,8 +8,13 @@ export function GlossaryToggle() {
   return (
     <button
       onClick={toggle}
-      className={`btn-ghost p-2 rounded-lg relative ${enabled ? 'text-blue-400 bg-blue-900/20' : ''}`}
-      title={enabled ? 'Glossary on' : 'Glossary off'}
+      className="p-2 rounded-lg transition-all"
+      style={{
+        color: enabled ? 'var(--accent)' : 'var(--text-secondary)',
+        background: enabled ? 'rgba(59,130,246,0.12)' : 'transparent',
+        border: `1px solid ${enabled ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+      }}
+      title={enabled ? 'Glossary ON — hover terms for definitions' : 'Glossary OFF'}
     >
       <BookOpen className="w-4 h-4" />
     </button>

@@ -1,43 +1,69 @@
 import { useGlossaryStore } from '../../store/glossary'
 import { GLOSSARY, GLOSSARY_TERMS } from '../../utils/glossary'
-import { useState, useRef, useEffect, type ReactNode } from 'react'
+import { useState, type ReactNode, type MouseEvent } from 'react'
+import { createPortal } from 'react-dom'
+
+interface TooltipPos { x: number; y: number }
 
 export function TermTooltip({ term, children }: { term: string; children: ReactNode }) {
   const enabled = useGlossaryStore((s) => s.enabled)
-  const [show, setShow] = useState(false)
-  const ref = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<TooltipPos | null>(null)
   const explanation = GLOSSARY[term]
+
+  const show = (e: MouseEvent<HTMLSpanElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    setPos({ x: r.left + r.width / 2, y: r.top })
+  }
 
   if (!enabled || !explanation) return <>{children}</>
 
   return (
-    <span
-      ref={ref}
-      className="relative border-b border-dotted border-blue-400/40 cursor-help"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      {children}
-      {show && (
-        <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-slate-800 text-white text-xs leading-relaxed shadow-xl whitespace-nowrap max-w-[320px] pointer-events-none" style={{ whiteSpace: 'normal' }}>
+    <>
+      <span
+        className="cursor-help"
+        style={{ borderBottom: '1px dotted var(--accent)' }}
+        onMouseEnter={show}
+        onMouseLeave={() => setPos(null)}
+      >
+        {children}
+      </span>
+      {pos && createPortal(
+        <div
+          className="text-xs leading-relaxed rounded-xl px-3 py-2.5 shadow-2xl pointer-events-none"
+          style={{
+            position: 'fixed',
+            zIndex: 9999,
+            left: pos.x,
+            top: pos.y - 10,
+            transform: 'translate(-50%, -100%)',
+            maxWidth: 300,
+            background: 'var(--card-bg)',
+            border: '1px solid var(--card-border)',
+            color: 'var(--text)',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+          }}
+        >
           {explanation}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800" />
-        </span>
+          <span
+            className="absolute left-1/2 -translate-x-1/2"
+            style={{
+              top: '100%',
+              width: 0,
+              height: 0,
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: '6px solid var(--card-border)',
+            }}
+          />
+        </div>,
+        document.body,
       )}
-    </span>
+    </>
   )
 }
 
 export function GlossaryText({ text }: { text: string }) {
   const enabled = useGlossaryStore((s) => s.enabled)
-  const [show, setShow] = useState<string | null>(null)
-  const ref = useRef<HTMLSpanElement>(null)
-
-  useEffect(() => {
-    if (!show) return
-    const timer = setTimeout(() => setShow(null), 3000)
-    return () => clearTimeout(timer)
-  }, [show])
 
   if (!enabled) return <>{text}</>
 
@@ -50,14 +76,11 @@ export function GlossaryText({ text }: { text: string }) {
     for (const term of GLOSSARY_TERMS) {
       const idx = remaining.toLowerCase().indexOf(term.toLowerCase())
       if (idx === -1) continue
-      if (idx > 0) {
-        parts.push(<span key={key++}>{remaining.slice(0, idx)}</span>)
-      }
-      const match = remaining.slice(idx, idx + term.length)
+      if (idx > 0) parts.push(<span key={key++}>{remaining.slice(0, idx)}</span>)
       parts.push(
         <TermTooltip key={key++} term={term}>
-          {match}
-        </TermTooltip>
+          {remaining.slice(idx, idx + term.length)}
+        </TermTooltip>,
       )
       remaining = remaining.slice(idx + term.length)
       matched = true
@@ -69,5 +92,5 @@ export function GlossaryText({ text }: { text: string }) {
     }
   }
 
-  return <span ref={ref}>{parts}</span>
+  return <span>{parts}</span>
 }
