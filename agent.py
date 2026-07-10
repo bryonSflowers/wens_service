@@ -253,19 +253,13 @@ async def generate_report(
     if not api_key:
         logger.info("ANTHROPIC_API_KEY not set — using offline mode")
     else:
-        try:
-            return await _generate_claude(query, pool, cfg, user_id)
-        except anthropic.NotFoundError:
-            pass  # fall through to offline mode below
-        except asyncio.TimeoutError:
-            logger.error("Claude timed out — falling back to offline mode")
-            pass
-        except Exception as e:
-            err = str(e).lower()
-            if "api key" in err or "auth" in err or "unauthorized" in err:
-                pass  # fall through to offline mode
-            else:
-                return (f"⚠️ Report generation failed: {e}", {"model": "none", "finish_reason": "error"})
+        text, meta = await _generate_claude(query, pool, cfg, user_id)
+        if "timed out" in text.lower() or "timeout" in text.lower():
+            logger.warning("Claude timed out — falling back to offline mode")
+        elif "api key" in text.lower() or "auth" in text.lower() or "unauthorized" in text.lower():
+            logger.warning("Claude auth error — falling back to offline mode")
+        else:
+            return text, meta
 
     # Offline fallback — generate from database data directly
     try:
