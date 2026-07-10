@@ -13,7 +13,7 @@ const ACCENTS: Record<AccentColor, { border: string; iconBg: string; iconColor: 
 }
 
 interface StatCardProps {
-  label: string
+  label: ReactNode
   value: string | number | ReactNode
   icon?: LucideIcon
   trend?: { value: string; positive: boolean }

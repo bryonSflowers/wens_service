@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, RefreshCw, Building2, PieChart, BarChart3, Activity, AlertTriangle } from 'lucide-react'
 import { fundamentalsApi } from '../api/client'
+import { GlossaryText } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import type { Fundamental } from '../types'
@@ -26,7 +27,7 @@ export function FundamentalsPage() {
 
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
     <div className="flex justify-between py-3 border-b border-[var(--card-border)]">
-      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+      <span className="text-sm text-[var(--text-secondary)]"><GlossaryText text={label} /></span>
       <span className="text-sm font-semibold font-mono">{value}</span>
     </div>
   )
