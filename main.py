@@ -202,6 +202,16 @@ if os.path.isdir(SPA_DIR):
 
     @app.middleware("http")
     async def spa_fallback(request, call_next):
+        accept = request.headers.get("accept", "")
+        is_browser = "text/html" in accept and "application/json" not in accept
+        if request.method == "GET" and is_browser:
+            file_path = request.url.path.lstrip("/")
+            full_path = os.path.join(SPA_DIR, file_path)
+            if os.path.isfile(full_path):
+                return FileResponse(full_path)
+            index_path = os.path.join(SPA_DIR, "index.html")
+            if os.path.isfile(index_path):
+                return FileResponse(index_path, media_type="text/html")
         response = await call_next(request)
         if response.status_code == 404 and request.method == "GET":
             file_path = request.url.path.lstrip("/")
