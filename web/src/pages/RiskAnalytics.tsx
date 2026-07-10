@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Activity, TrendingDown, Shield, AlertTriangle, Search, RefreshCw, BarChart3, GitCompare } from 'lucide-react'
 import { riskApi } from '../api/client'
 import { StatCard } from '../components/ui/StatCard'
-import { GlossaryText } from '../components/ui/TermTooltip'
+import { TermTooltip } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import type { RiskAll } from '../types'
@@ -48,19 +48,19 @@ export function RiskAnalyticsPage() {
       {risk && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label={<GlossaryText text={_('risk.annualizedVol')} />} value={risk.annualized_volatility_pct != null ? `${risk.annualized_volatility_pct.toFixed(2)}%` : '-'} icon={Activity}
+            <StatCard label={<TermTooltip term="Annualized Vol">{_('risk.annualizedVol')}</TermTooltip>} value={risk.annualized_volatility_pct != null ? `${risk.annualized_volatility_pct.toFixed(2)}%` : '-'} icon={Activity}
               trend={{ value: (risk.annualized_volatility_pct ?? 0) < 20 ? 'Low' : (risk.annualized_volatility_pct ?? 0) < 40 ? 'Moderate' : 'High', positive: (risk.annualized_volatility_pct ?? 0) < 30 }} />
-            <StatCard label={<GlossaryText text={_('risk.sharpeRatio')} />} value={risk.sharpe_ratio != null ? risk.sharpe_ratio.toFixed(2) : '-'} icon={BarChart3}
+            <StatCard label={<TermTooltip term="Sharpe Ratio">{_('risk.sharpeRatio')}</TermTooltip>} value={risk.sharpe_ratio != null ? risk.sharpe_ratio.toFixed(2) : '-'} icon={BarChart3}
               trend={{ value: 'Risk-adjusted return', positive: (risk.sharpe_ratio ?? 0) > 1 }} />
-            <StatCard label={<GlossaryText text={_('risk.maxDrawdown')} />} value={risk.max_drawdown_pct != null ? `${risk.max_drawdown_pct.toFixed(2)}%` : '-'} icon={TrendingDown}
+            <StatCard label={<TermTooltip term="Max Drawdown">{_('risk.maxDrawdown')}</TermTooltip>} value={risk.max_drawdown_pct != null ? `${risk.max_drawdown_pct.toFixed(2)}%` : '-'} icon={TrendingDown}
               trend={{ value: 'Peak-to-trough', positive: (risk.max_drawdown_pct ?? 0) > -20 }} />
-            <StatCard label={<GlossaryText text={_('risk.var95')} />} value={risk.var_95_daily_pct != null ? `${risk.var_95_daily_pct.toFixed(2)}%` : '-'} icon={Shield}
+            <StatCard label={<TermTooltip term="VaR">{_('risk.var95')}</TermTooltip>} value={risk.var_95_daily_pct != null ? `${risk.var_95_daily_pct.toFixed(2)}%` : '-'} icon={Shield}
               trend={{ value: 'Worst daily loss', positive: (risk.var_95_daily_pct ?? 0) > -5 }} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><GitCompare className="w-4 h-4" /> <GlossaryText text={_('risk.beta')} /></h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><GitCompare className="w-4 h-4" /> <TermTooltip term="Beta">{_('risk.beta')}</TermTooltip></h3>
               {risk.beta_vs_index != null ? (
                 <div className="space-y-3">
                   <div className="flex items-baseline gap-2">
@@ -103,7 +103,7 @@ export function RiskAnalyticsPage() {
           </div>
 
           <div className="card p-6">
-            <h3 className="text-sm font-semibold text-[var(--text)] mb-4"><GlossaryText text="Value at Risk (VaR)" /></h3>
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-4"><TermTooltip term="Value at Risk">Value at Risk (VaR)</TermTooltip></h3>
             {risk.var_95_daily_pct != null && (
               <div className="grid grid-cols-3 gap-4">
                 {[

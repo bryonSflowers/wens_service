@@ -1,4 +1,5 @@
 import { useGlossaryStore } from '../../store/glossary'
+import { useLangStore } from '../../store/language'
 import { GLOSSARY, GLOSSARY_TERMS } from '../../utils/glossary'
 import { useState, type ReactNode, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -7,8 +8,11 @@ interface TooltipPos { x: number; y: number }
 
 export function TermTooltip({ term, children }: { term: string; children: ReactNode }) {
   const enabled = useGlossaryStore((s) => s.enabled)
+  const lang = useLangStore((s) => s.lang)
   const [pos, setPos] = useState<TooltipPos | null>(null)
-  const explanation = GLOSSARY[term]
+
+  const entry = GLOSSARY[term]
+  const explanation = entry?.[lang as 'en' | 'zh-TW'] ?? entry?.en
 
   const show = (e: MouseEvent<HTMLSpanElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -62,6 +66,8 @@ export function TermTooltip({ term, children }: { term: string; children: ReactN
   )
 }
 
+// Auto-scans English text for known glossary terms and wraps them.
+// For zh-TW labels, use TermTooltip with an explicit term prop instead.
 export function GlossaryText({ text }: { text: string }) {
   const enabled = useGlossaryStore((s) => s.enabled)
 

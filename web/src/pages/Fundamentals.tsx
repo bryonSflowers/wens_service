@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Search, RefreshCw, Building2, PieChart, BarChart3, Activity, AlertTriangle } from 'lucide-react'
 import { fundamentalsApi } from '../api/client'
-import { GlossaryText } from '../components/ui/TermTooltip'
+import { TermTooltip } from '../components/ui/TermTooltip'
 import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import type { Fundamental } from '../types'
@@ -25,9 +25,11 @@ export function FundamentalsPage() {
     finally { setLoading(false); setRefreshing(false) }
   }
 
-  const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  const Row = ({ label, term, value }: { label: string; term?: string; value: React.ReactNode }) => (
     <div className="flex justify-between py-3 border-b border-[var(--card-border)]">
-      <span className="text-sm text-[var(--text-secondary)]"><GlossaryText text={label} /></span>
+      <span className="text-sm text-[var(--text-secondary)]">
+        {term ? <TermTooltip term={term}>{label}</TermTooltip> : label}
+      </span>
       <span className="text-sm font-semibold font-mono">{value}</span>
     </div>
   )
@@ -61,26 +63,26 @@ export function FundamentalsPage() {
             <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><Building2 className="w-4 h-4" /> {_('fund.company')}</h3>
             <Row label={_('fund.sector')} value={data.sector ?? '-'} />
             <Row label={_('fund.industry')} value={data.industry ?? '-'} />
-            <Row label={_('fund.marketCap')} value={data.market_cap != null ? `$${(data.market_cap / 1e9).toFixed(2)}B` : '-'} />
+            <Row label={_('fund.marketCap')} term="Market Cap" value={data.market_cap != null ? `$${(data.market_cap / 1e9).toFixed(2)}B` : '-'} />
             <div className="pt-2 text-xs text-[var(--text-secondary)]">{_('fund.updated')}: {data.updated_at ? new Date(data.updated_at).toLocaleDateString() : '-'}</div>
           </div>
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> {_('fund.valuation')}</h3>
-            <Row label={_('fund.pe')} value={data.pe_ratio != null ? `${data.pe_ratio.toFixed(2)}x` : '-'} />
-            <Row label={_('fund.pb')} value={data.pb_ratio != null ? `${data.pb_ratio.toFixed(2)}x` : '-'} />
-            <Row label={_('fund.evEbitda')} value={data.ev_ebitda != null ? `${data.ev_ebitda.toFixed(2)}x` : '-'} />
-            <Row label={_('fund.divYield')} value={data.dividend_yield != null ? `${(data.dividend_yield * 100).toFixed(2)}%` : '-'} />
-            <Row label={_('fund.payoutRatio')} value={data.dividend_payout_ratio != null ? `${(data.dividend_payout_ratio * 100).toFixed(1)}%` : '-'} />
+            <Row label={_('fund.pe')} term="P/E Ratio" value={data.pe_ratio != null ? `${data.pe_ratio.toFixed(2)}x` : '-'} />
+            <Row label={_('fund.pb')} term="P/B Ratio" value={data.pb_ratio != null ? `${data.pb_ratio.toFixed(2)}x` : '-'} />
+            <Row label={_('fund.evEbitda')} term="EV/EBITDA" value={data.ev_ebitda != null ? `${data.ev_ebitda.toFixed(2)}x` : '-'} />
+            <Row label={_('fund.divYield')} term="Div Yield" value={data.dividend_yield != null ? `${(data.dividend_yield * 100).toFixed(2)}%` : '-'} />
+            <Row label={_('fund.payoutRatio')} term="Payout Ratio" value={data.dividend_payout_ratio != null ? `${(data.dividend_payout_ratio * 100).toFixed(1)}%` : '-'} />
           </div>
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><Activity className="w-4 h-4" /> {_('fund.profitability')}</h3>
-            <Row label={_('fund.roe')} value={data.roe != null ? `${(data.roe * 100).toFixed(1)}%` : '-'} />
-            <Row label={_('fund.eps')} value={data.eps != null ? `$${data.eps.toFixed(2)}` : '-'} />
-            <Row label={_('fund.epsGrowth')} value={data.eps_growth_pct != null ? `${(data.eps_growth_pct * 100).toFixed(1)}%` : '-'} />
+            <Row label={_('fund.roe')} term="ROE" value={data.roe != null ? `${(data.roe * 100).toFixed(1)}%` : '-'} />
+            <Row label={_('fund.eps')} term="EPS" value={data.eps != null ? `$${data.eps.toFixed(2)}` : '-'} />
+            <Row label={_('fund.epsGrowth')} term="EPS Growth" value={data.eps_growth_pct != null ? `${(data.eps_growth_pct * 100).toFixed(1)}%` : '-'} />
           </div>
           <div className="card p-6">
             <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><PieChart className="w-4 h-4" /> {_('fund.health')}</h3>
-            <Row label={_('fund.debtToEquity')} value={data.debt_to_equity != null ? data.debt_to_equity.toFixed(2) : '-'} />
+            <Row label={_('fund.debtToEquity')} term="Debt-to-Equity" value={data.debt_to_equity != null ? data.debt_to_equity.toFixed(2) : '-'} />
             {data.pe_ratio && data.eps_growth_pct && data.eps_growth_pct > 0 && (
               <div className="mt-4 p-3 rounded-lg bg-[var(--sidebar-link-hover)]">
                 <p className="text-xs text-[var(--text-secondary)] mb-1">{_('fund.peg')}</p>
