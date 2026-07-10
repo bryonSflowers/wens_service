@@ -246,7 +246,14 @@ export function ComparePage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-[var(--card-border)] bg-[var(--sidebar-link-hover)]">
                   <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Metric</th>
-                  {items.map((i) => <th key={i.ticker} className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">{i.ticker}</th>)}
+                  {items.map((i) => (
+                    <th key={i.ticker} className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">
+                      <span className="inline-flex items-center gap-1.5 justify-end">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COMPANY_COLORS[i.ticker] || '#6b7280' }} />
+                        {i.ticker}
+                      </span>
+                    </th>
+                  ))}
                 </tr></thead>
                 <tbody>
                   {[
@@ -280,7 +287,14 @@ export function ComparePage() {
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-[var(--card-border)] bg-[var(--sidebar-link-hover)]">
                   <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Metric</th>
-                  {items.map((i) => <th key={i.ticker} className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">{i.ticker}</th>)}
+                  {items.map((i) => (
+                    <th key={i.ticker} className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">
+                      <span className="inline-flex items-center gap-1.5 justify-end">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COMPANY_COLORS[i.ticker] || '#6b7280' }} />
+                        {i.ticker}
+                      </span>
+                    </th>
+                  ))}
                 </tr></thead>
                 <tbody>
                   {[
