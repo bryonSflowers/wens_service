@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, Eye, Bell, AlertTriangle, CheckCircle, X } from 'lucide-react'
 import { watchlistApi, alertsApi } from '../api/client'
+import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Modal } from '../components/ui/Modal'
@@ -23,6 +24,7 @@ export function WatchlistPage() {
   const [alertType, setAlertType] = useState<'above' | 'below'>('above')
   const [alertPrice, setAlertPrice] = useState('')
   const [checkResult, setCheckResult] = useState<{ triggered_count: number; triggered: any[] } | null>(null)
+  const _ = useT()
 
   const load = async () => {
     try { setWatchlists((await watchlistApi.list()).data) } catch {}
@@ -78,12 +80,12 @@ export function WatchlistPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">Watchlists & Alerts</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Track tickers and set price alerts</p>
+          <h1 className="text-2xl font-bold text-[var(--text)]">{_('wl.title')}</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">{_('wl.subtitle')}</p>
         </div>
         <div className="flex gap-2">
-          <button className="btn-secondary text-sm" onClick={checkAlerts}><Bell className="w-4 h-4" /> Check Alerts</button>
-          <button className="btn-primary" onClick={() => { setEditName(''); setEditDesc(''); setShowCreate(true) }}><Plus className="w-4 h-4" /> New Watchlist</button>
+          <button className="btn-secondary text-sm" onClick={checkAlerts}><Bell className="w-4 h-4" /> {_('wl.checkAlerts')}</button>
+          <button className="btn-primary" onClick={() => { setEditName(''); setEditDesc(''); setShowCreate(true) }}><Plus className="w-4 h-4" /> {_('wl.newWatchlist')}</button>
         </div>
       </div>
 
@@ -92,7 +94,7 @@ export function WatchlistPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {checkResult.triggered_count > 0 ? <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" /> : <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />}
-              <span className="font-medium text-sm">{checkResult.triggered_count} alert{checkResult.triggered_count !== 1 ? 's' : ''} triggered</span>
+              <span className="font-medium text-sm">{checkResult.triggered_count} {_('wl.alertsTriggered')}</span>
             </div>
             <button onClick={() => setCheckResult(null)} className="btn-ghost p-1"><X className="w-4 h-4" /></button>
           </div>
@@ -119,15 +121,15 @@ export function WatchlistPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card">
             <div className="card-header">
-              <h3 className="font-semibold text-sm text-[var(--text)]">{selected.name} — Tickers</h3>
-              <button className="btn-secondary text-sm" onClick={() => { setNewTicker(''); setNewNotes(''); setShowAdd(true) }}><Plus className="w-4 h-4" /> Add Ticker</button>
+              <h3 className="font-semibold text-sm text-[var(--text)]">{selected.name} — {_('wl.tickers')}</h3>
+              <button className="btn-secondary text-sm" onClick={() => { setNewTicker(''); setNewNotes(''); setShowAdd(true) }}><Plus className="w-4 h-4" /> {_('wl.addTicker')}</button>
             </div>
-            {items.length === 0 ? <div className="card-body"><EmptyState title="No tickers" /></div> : (
+            {items.length === 0 ? <div className="card-body"><EmptyState title={_('wl.noTickers')} /></div> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-[var(--card-border)] bg-[var(--sidebar-link-hover)]">
-                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Ticker</th>
-                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Notes</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">{_('wl.tickerPlaceholder')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">{_('portfolio.notes')}</th>
                     <th className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">Added</th>
                     <th className="text-center px-4 py-3 font-medium text-[var(--text-secondary)]"></th>
                   </tr></thead>
@@ -146,25 +148,25 @@ export function WatchlistPage() {
 
           <div className="card">
             <div className="card-header">
-              <h3 className="font-semibold text-sm text-[var(--text)] flex items-center gap-2"><Bell className="w-4 h-4" /> Price Alerts</h3>
-              <button className="btn-secondary text-sm" onClick={() => { setAlertTicker(''); setAlertPrice(''); setAlertType('above'); setShowAlert(true) }}><Plus className="w-4 h-4" /> New Alert</button>
+              <h3 className="font-semibold text-sm text-[var(--text)] flex items-center gap-2"><Bell className="w-4 h-4" /> {_('wl.priceAlerts')}</h3>
+              <button className="btn-secondary text-sm" onClick={() => { setAlertTicker(''); setAlertPrice(''); setAlertType('above'); setShowAlert(true) }}><Plus className="w-4 h-4" /> {_('wl.newAlert')}</button>
             </div>
-            {alerts.length === 0 ? <div className="card-body"><EmptyState title="No alerts" /></div> : (
+            {alerts.length === 0 ? <div className="card-body"><EmptyState title={_('wl.noAlerts')} /></div> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-[var(--card-border)] bg-[var(--sidebar-link-hover)]">
-                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Ticker</th>
-                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">Type</th>
-                    <th className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">Threshold</th>
-                    <th className="text-center px-4 py-3 font-medium text-[var(--text-secondary)]">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">{_('wl.tickerPlaceholder')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-[var(--text-secondary)]">{_('wl.type')}</th>
+                    <th className="text-right px-4 py-3 font-medium text-[var(--text-secondary)]">{_('wl.threshold')}</th>
+                    <th className="text-center px-4 py-3 font-medium text-[var(--text-secondary)]">{_('common.status')}</th>
                     <th className="text-center px-4 py-3 font-medium text-[var(--text-secondary)]"></th>
                   </tr></thead>
                   <tbody>{alerts.map((a) => (
                     <tr key={a.id} className="border-b border-[var(--card-border)] hover:bg-[var(--sidebar-link-hover)]">
                       <td className="px-4 py-3 font-medium font-mono">{a.ticker}</td>
-                      <td className="px-4 py-3"><span className={a.alert_type === 'above' ? 'badge-green' : 'badge-red'}>{a.alert_type === 'above' ? '▲ Above' : '▼ Below'}</span></td>
+                      <td className="px-4 py-3"><span className={a.alert_type === 'above' ? 'badge-green' : 'badge-red'}>{a.alert_type === 'above' ? `▲ ${_('wl.above')}` : `▼ ${_('wl.below')}`}</span></td>
                       <td className="px-4 py-3 text-right font-mono font-medium">${a.threshold_price.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center"><span className={a.is_triggered ? 'badge-green' : 'badge-blue'}>{a.is_triggered ? 'Triggered' : 'Active'}</span></td>
+                      <td className="px-4 py-3 text-center"><span className={a.is_triggered ? 'badge-green' : 'badge-blue'}>{a.is_triggered ? _('wl.triggered') : _('common.active')}</span></td>
                       <td className="px-4 py-3 text-center"><button onClick={() => delAlert(a.id)} className="btn-ghost p-1 text-red-400"><Trash2 className="w-4 h-4" /></button></td>
                     </tr>
                   ))}</tbody>
@@ -175,25 +177,25 @@ export function WatchlistPage() {
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create Watchlist" size="sm"><div className="space-y-4">
-        <div><label className="label">Name</label><input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Tech Stocks" /></div>
-        <div><label className="label">Description</label><input className="input" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="My favorite tech tickers" /></div>
-        <button className="btn-primary w-full" onClick={create} disabled={!editName.trim()}>Create</button>
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={_('wl.createTitle')} size="sm"><div className="space-y-4">
+        <div><label className="label">{_('portfolio.name')}</label><input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Tech Stocks" /></div>
+        <div><label className="label">{_('portfolio.description')}</label><input className="input" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="My favorite tech tickers" /></div>
+        <button className="btn-primary w-full" onClick={create} disabled={!editName.trim()}>{_('common.create')}</button>
       </div></Modal>
 
-      <Modal open={showAdd} onClose={() => setShowAdd(false)} title="Add Ticker" size="sm"><div className="space-y-4">
-        <div><label className="label">Ticker</label><input className="input" value={newTicker} onChange={(e) => setNewTicker(e.target.value)} placeholder="2330.TW" /></div>
-        <div><label className="label">Notes</label><input className="input" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="TSMC" /></div>
-        <button className="btn-primary w-full" onClick={addItem} disabled={!newTicker.trim()}>Add</button>
+      <Modal open={showAdd} onClose={() => setShowAdd(false)} title={_('wl.addTickerTitle')} size="sm"><div className="space-y-4">
+        <div><label className="label">{_('wl.tickerPlaceholder')}</label><input className="input" value={newTicker} onChange={(e) => setNewTicker(e.target.value)} placeholder="2330.TW" /></div>
+        <div><label className="label">{_('portfolio.notes')}</label><input className="input" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="TSMC" /></div>
+        <button className="btn-primary w-full" onClick={addItem} disabled={!newTicker.trim()}>{_('common.save')}</button>
       </div></Modal>
 
-      <Modal open={showAlert} onClose={() => setShowAlert(false)} title="New Price Alert" size="sm"><div className="space-y-4">
-        <div><label className="label">Ticker</label><input className="input" value={alertTicker} onChange={(e) => setAlertTicker(e.target.value)} placeholder="3045.TW" /></div>
-        <div><label className="label">Type</label><select className="input" value={alertType} onChange={(e) => setAlertType(e.target.value as 'above' | 'below')}>
-          <option value="above">Price Above</option><option value="below">Price Below</option>
+      <Modal open={showAlert} onClose={() => setShowAlert(false)} title={_('wl.alertTitle')} size="sm"><div className="space-y-4">
+        <div><label className="label">{_('wl.tickerPlaceholder')}</label><input className="input" value={alertTicker} onChange={(e) => setAlertTicker(e.target.value)} placeholder="3045.TW" /></div>
+        <div><label className="label">{_('wl.alertType')}</label><select className="input" value={alertType} onChange={(e) => setAlertType(e.target.value as 'above' | 'below')}>
+          <option value="above">{_('wl.above')}</option><option value="below">{_('wl.below')}</option>
         </select></div>
-        <div><label className="label">Threshold</label><input className="input" type="number" value={alertPrice} onChange={(e) => setAlertPrice(e.target.value)} placeholder="120.00" /></div>
-        <button className="btn-primary w-full" onClick={createAlert} disabled={!alertTicker.trim() || !alertPrice}>Create</button>
+        <div><label className="label">{_('wl.thresholdPrice')}</label><input className="input" type="number" value={alertPrice} onChange={(e) => setAlertPrice(e.target.value)} placeholder="120.00" /></div>
+        <button className="btn-primary w-full" onClick={createAlert} disabled={!alertTicker.trim() || !alertPrice}>{_('common.create')}</button>
       </div></Modal>
     </div>
   )

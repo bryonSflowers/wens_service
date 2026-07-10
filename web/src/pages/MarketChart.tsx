@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, type IChartApi, type CandlestickData, type HistogramData } from 'lightweight-charts'
 import { Search, RefreshCw, AlertTriangle } from 'lucide-react'
 import { chartApi } from '../api/client'
+import { useT } from '../i18n'
 import { ChartSkeleton } from '../components/ui/Skeleton'
 import type { OHLCVItem } from '../types'
 
@@ -22,6 +23,7 @@ export function MarketChartPage() {
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstance = useRef<IChartApi | null>(null)
   const dark = document.documentElement.classList.contains('dark')
+  const _ = useT()
 
   const fetchData = async (d: number) => {
     if (!ticker.trim()) return
@@ -130,8 +132,8 @@ export function MarketChartPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text)]">Stock Chart</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Professional candlestick chart with volume</p>
+        <h1 className="text-2xl font-bold text-[var(--text)]">{_('chart.title')}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">{_('chart.subtitle')}</p>
       </div>
 
       <div className="card">
@@ -139,7 +141,7 @@ export function MarketChartPage() {
           <div className="flex gap-2">
             <input
               className="input max-w-[140px]"
-              placeholder="Ticker"
+              placeholder={_('chart.tickerPlaceholder')}
               value={ticker}
               onChange={(e) => setTicker(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchData(days)}
@@ -149,7 +151,7 @@ export function MarketChartPage() {
             </button>
             <button className="btn-secondary" onClick={syncData} disabled={syncing}>
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              Sync
+              {_('common.sync')}
             </button>
           </div>
           <div className="pill-group ml-auto">
@@ -175,13 +177,13 @@ export function MarketChartPage() {
           <div ref={chartRef} className="w-full" />
           <div className="flex items-center gap-4 px-4 pb-3 text-xs text-[var(--text-secondary)]">
             <span className="flex items-center gap-1">
-              <span className="w-3 h-3 inline-block rounded-sm bg-green-500" /> Up
+              <span className="w-3 h-3 inline-block rounded-sm bg-green-500" /> {_('chart.up')}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-3 h-3 inline-block rounded-sm bg-red-500" /> Down
+              <span className="w-3 h-3 inline-block rounded-sm bg-red-500" /> {_('chart.down')}
             </span>
             <span className="live-dot bg-green-400 ml-auto" />
-            <span>Live</span>
+            <span>{_('dashboard.live')}</span>
           </div>
         </div>
       )}
@@ -189,19 +191,19 @@ export function MarketChartPage() {
       {!loading && ohlcv.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h3 className="font-semibold text-sm">Latest Prices</h3>
+            <h3 className="font-semibold text-sm">{_('chart.latestPrices')}</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--card-border)]">
-                  <th className="text-left px-3 py-2 font-medium text-[var(--text-secondary)]">Date</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">Open</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">High</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">Low</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">Close</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">Change</th>
-                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">Volume</th>
+                  <th className="text-left px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.date')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.open')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.high')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.low')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.close')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.change')}</th>
+                  <th className="text-right px-3 py-2 font-medium text-[var(--text-secondary)]">{_('chart.volume')}</th>
                 </tr>
               </thead>
               <tbody>

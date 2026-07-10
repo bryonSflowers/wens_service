@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Upload, FileText, Trash2, FileSpreadsheet, AlertCircle, CheckCircle, X } from 'lucide-react'
 import { documentsApi } from '../api/client'
+import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Pagination } from '../components/ui/Pagination'
@@ -29,6 +30,7 @@ export function DocumentsPage() {
   const [total, setTotal] = useState(0)
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const _ = useT()
 
   const load = useCallback(async () => {
     try {
@@ -56,17 +58,17 @@ export function DocumentsPage() {
 
   const upload = async (file: File) => {
     if (file.size > 20 * 1024 * 1024) {
-      setStatus({ ok: false, msg: `${file.name} is too large (max 20MB)` })
+      setStatus({ ok: false, msg: `${file.name} ${_('doc.fileTooLarge')}` })
       return
     }
     setUploading(true)
     setStatus(null)
     try {
       await documentsApi.upload(file)
-      setStatus({ ok: true, msg: `${file.name} uploaded successfully` })
+      setStatus({ ok: true, msg: `${file.name} ${_('doc.uploadSuccess')}` })
       load()
     } catch (e: any) {
-      setStatus({ ok: false, msg: e.response?.data?.detail || `Failed to upload ${file.name}` })
+      setStatus({ ok: false, msg: e.response?.data?.detail || `${_('doc.uploadFailed')} ${file.name}` })
     } finally {
       setUploading(false)
     }
@@ -101,8 +103,8 @@ export function DocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text)]">Documents</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Upload Excel, Word, or text files to extract and store their data</p>
+        <h1 className="text-2xl font-bold text-[var(--text)]">{_('doc.title')}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">{_('doc.subtitle')}</p>
       </div>
 
       <div
@@ -117,13 +119,13 @@ export function DocumentsPage() {
         <input ref={fileRef} type="file" hidden accept={ACCEPTED} multiple onChange={handleFileSelect} />
         <Upload className="w-10 h-10 mx-auto mb-3 text-[var(--text-secondary)]" />
         <p className="text-sm font-medium text-[var(--text)]">
-          {uploading ? 'Uploading...' : dragOver ? 'Drop files here' : 'Drag & drop files or click to browse'}
+          {uploading ? _('doc.uploading') : dragOver ? _('doc.uploadZoneDrag') : _('doc.uploadZone')}
         </p>
-        <p className="text-xs text-[var(--text-secondary)] mt-1">Supports .txt, .csv, .xlsx, .xls, .docx, .doc (max 20MB)</p>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">{_('doc.supportedFormats')}</p>
         {uploading && (
           <div className="mt-4 flex items-center justify-center gap-2">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-            <span className="text-sm text-[var(--text-secondary)]">Processing...</span>
+            <span className="text-sm text-[var(--text-secondary)]">{_('doc.processing')}</span>
           </div>
         )}
       </div>
@@ -142,8 +144,8 @@ export function DocumentsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 card">
-          <div className="card-header"><h3 className="font-semibold text-sm text-[var(--text)]">Uploaded Files</h3></div>
-          {docs.length === 0 ? <div className="card-body"><EmptyState title="No documents" description="Upload a file to get started." /></div> : (
+          <div className="card-header"><h3 className="font-semibold text-sm text-[var(--text)]">{_('doc.uploadedFiles')}</h3></div>
+          {docs.length === 0 ? <div className="card-body"><EmptyState title={_('doc.noDocuments')} description={_('doc.noDocumentsDesc')} /></div> : (
             <div className="divide-y divide-[var(--card-border)] max-h-[500px] overflow-y-auto">
               {docs.map((d) => (
                 <button key={d.id} onClick={() => selectDoc(d.id)}
@@ -154,7 +156,7 @@ export function DocumentsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text)] truncate">{d.filename}</p>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      {d.word_count.toLocaleString()} words <span className="mx-1">·</span> {formatSize(d.word_count)}
+                      {d.word_count.toLocaleString()} {_('common.words')} <span className="mx-1">·</span> {formatSize(d.word_count)}
                     </p>
                   </div>
                 </button>
@@ -169,7 +171,7 @@ export function DocumentsPage() {
         <div className="lg:col-span-2 card">
           {!selectedId ? (
             <div className="card-body">
-              <EmptyState title="Select a document" description="Click a file on the left to view its parsed content." icon="inbox" />
+              <EmptyState title={_('doc.selectDoc')} description={_('doc.selectDocDesc')} icon="inbox" />
             </div>
           ) : selectLoading ? (
             <div className="card-body flex items-center justify-center py-12">
@@ -177,7 +179,7 @@ export function DocumentsPage() {
             </div>
           ) : !selected ? (
             <div className="card-body">
-              <EmptyState title="Error loading document" description="Could not load the document content." icon="alert" />
+              <EmptyState title={_('doc.errorLoading')} description={_('doc.errorLoadingDesc')} icon="alert" />
             </div>
           ) : (
             <>
@@ -187,8 +189,8 @@ export function DocumentsPage() {
                   <div>
                     <h3 className="font-semibold text-sm text-[var(--text)]">{selected.filename}</h3>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      {selected.word_count.toLocaleString()} words <span className="mx-1">·</span>
-                      Uploaded {new Date(selected.created_at).toLocaleString()}
+                      {selected.word_count.toLocaleString()} {_('common.words')} <span className="mx-1">·</span>
+                      {_('common.uploaded')} {new Date(selected.created_at).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -199,13 +201,13 @@ export function DocumentsPage() {
               <div className="card-body max-h-[600px] overflow-y-auto">
                 {!selected.content ? (
                   <div className="text-center py-8 text-[var(--text-secondary)]">
-                    <p className="text-sm">No extractable content found in this file.</p>
+                    <p className="text-sm">{_('doc.noContent')}</p>
                   </div>
                 ) : selected.raw_tables && Array.isArray(selected.raw_tables) && selected.raw_tables.length > 0 ? (
                   <div className="space-y-6">
                     {(selected.raw_tables as string[][][]).map((table, ti) => (
                       <div key={ti}>
-                        <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase mb-2">Table {ti + 1}</h4>
+                        <h4 className="text-xs font-semibold text-[var(--text-secondary)] uppercase mb-2">{_('doc.table')} {ti + 1}</h4>
                         <div className="overflow-x-auto border border-[var(--card-border)] rounded-lg">
                           <table className="w-full text-xs">
                             <tbody>
@@ -220,7 +222,7 @@ export function DocumentsPage() {
                           </table>
                         </div>
                         {table.length > 100 && (
-                          <p className="text-xs text-[var(--text-secondary)] mt-1">Showing first 100 of {table.length} rows</p>
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">{_('doc.showingFirst').replace('{count}', String(table.length))}</p>
                         )}
                       </div>
                     ))}
@@ -228,7 +230,7 @@ export function DocumentsPage() {
                 ) : (
                   <pre className="text-sm font-mono whitespace-pre-wrap text-[var(--text)] leading-relaxed">
                     {selected.content.length > 50000
-                      ? selected.content.slice(0, 50000) + '\n\n... (truncated, full content too large to display)'
+                      ? selected.content.slice(0, 50000) + `\n\n... (${_('doc.truncated')})`
                       : selected.content}
                   </pre>
                 )}

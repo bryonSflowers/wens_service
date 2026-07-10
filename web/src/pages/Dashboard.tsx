@@ -11,14 +11,9 @@ import { reportsApi, portfolioApi, fundamentalsApi } from '../api/client'
 import { StatCard } from '../components/ui/StatCard'
 import { AnimatedCounter } from '../components/ui/AnimatedCounter'
 import { PageSkeleton } from '../components/ui/Skeleton'
+import { useT } from '../i18n'
 import { EmptyState } from '../components/ui/EmptyState'
 import type { MonthlyReport, PortfolioSummary, Fundamental } from '../types'
-
-const PERIODS = [
-  { label: '6M', value: 6 },
-  { label: '1Y', value: 12 },
-  { label: 'All', value: 999 },
-]
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -29,6 +24,13 @@ export function DashboardPage() {
   const [searchTicker, setSearchTicker] = useState('')
   const [searchResult, setSearchResult] = useState<Fundamental | null>(null)
   const [searchLoading, setSearchLoading] = useState(false)
+  const _ = useT()
+
+  const PERIODS = [
+    { label: _('dashboard.period6m'), value: 6 },
+    { label: _('dashboard.period1y'), value: 12 },
+    { label: _('dashboard.periodAll'), value: 999 },
+  ]
 
   useEffect(() => {
     Promise.all([
@@ -70,34 +72,34 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">Market Overview</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">Taiwan Mobile (3045.TW) & Market Dashboard</p>
+          <h1 className="text-2xl font-bold text-[var(--text)]">{_('dashboard.title')}</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">{_('dashboard.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="live-dot bg-green-400" />
-          <span className="text-xs text-[var(--text-secondary)]">Live</span>
+          <span className="text-xs text-[var(--text-secondary)]">{_('dashboard.live')}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Revenue"
+          label={_('dashboard.totalRevenue')}
           value={<AnimatedCounter value={totalRevenue / 1000} decimals={1} suffix="B" prefix="NT$" />}
           icon={DollarSign}
         />
         <StatCard
-          label="Net Income"
+          label={_('dashboard.netIncome')}
           value={<AnimatedCounter value={totalNetIncome / 1000} decimals={1} suffix="B" prefix="NT$" />}
           icon={TrendingUp}
         />
         <StatCard
-          label="Avg Profit Margin"
+          label={_('dashboard.avgMargin')}
           value={<AnimatedCounter value={avgMargin} decimals={1} suffix="%" />}
           icon={Activity}
           trend={{ value: 'TTM', positive: avgMargin > 10 }}
         />
         <StatCard
-          label="Reports"
+          label={_('dashboard.reports')}
           value={reports.length}
           icon={BarChart3}
         />
@@ -106,31 +108,31 @@ export function DashboardPage() {
       {portfolioSummary && (
         <div className="glass rounded-xl">
           <div className="card-header">
-            <h3 className="font-semibold text-sm flex items-center gap-2"><PieChart className="w-4 h-4" /> Portfolio Snapshot</h3>
+            <h3 className="font-semibold text-sm flex items-center gap-2"><PieChart className="w-4 h-4" /> {_('dashboard.portfolioSnapshot')}</h3>
             <button className="btn-secondary text-xs" onClick={() => navigate('/portfolio')}>
-              Details <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3 h-3" />
             </button>
           </div>
           <div className="card-body">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-[var(--text-secondary)]">{portfolioSummary.name}</p>
-                <p className="text-lg font-bold font-mono">{portfolioSummary.holding_count} Holdings</p>
+                <p className="text-lg font-bold font-mono">{portfolioSummary.holding_count} {_('dashboard.holdings')}</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--text-secondary)]">Total Value</p>
+                <p className="text-xs text-[var(--text-secondary)]">{_('dashboard.totalValue')}</p>
                 <p className="text-lg font-bold font-mono">
                   <AnimatedCounter value={portfolioSummary.total_value} prefix="$" />
                 </p>
               </div>
               <div>
-                <p className="text-xs text-[var(--text-secondary)]">Total Cost</p>
+                <p className="text-xs text-[var(--text-secondary)]">{_('dashboard.totalCost')}</p>
                 <p className="text-lg font-bold font-mono">
                   <AnimatedCounter value={portfolioSummary.total_cost} prefix="$" />
                 </p>
               </div>
               <div>
-                <p className="text-xs text-[var(--text-secondary)]">Unrealized P&L</p>
+                <p className="text-xs text-[var(--text-secondary)]">{_('dashboard.unrealizedPnl')}</p>
                 <p className={`text-lg font-bold font-mono ${portfolioSummary.total_unrealized_pnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
                   {portfolioSummary.total_unrealized_pnl >= 0 ? '▲' : '▼'} {Math.abs(portfolioSummary.total_unrealized_pnl_pct)}%
                 </p>
@@ -142,20 +144,19 @@ export function DashboardPage() {
 
       <div className="glass rounded-xl">
         <div className="card-header">
-          <h3 className="font-semibold text-sm flex items-center gap-2"><Search className="w-4 h-4" /> Quick Stock Lookup</h3>
+          <h3 className="font-semibold text-sm flex items-center gap-2"><Search className="w-4 h-4" /> {_('dashboard.quickLookup')}</h3>
         </div>
         <div className="card-body">
           <div className="flex gap-2 flex-wrap">
             <input
               className="input max-w-xs"
-              placeholder="Ticker (e.g., 3045.TW)"
+              placeholder={_('dashboard.tickerPlaceholder')}
               value={searchTicker}
               onChange={(e) => setSearchTicker(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
             <button className="btn-primary" onClick={handleSearch} disabled={searchLoading}>
               {searchLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              Search
             </button>
           </div>
           {searchResult && (
@@ -172,7 +173,7 @@ export function DashboardPage() {
       {chartData.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[var(--text)]">Financial Charts</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)]">{_('dashboard.financialCharts')}</h3>
             <div className="pill-group">
               {PERIODS.map((p) => (
                 <button
@@ -187,7 +188,7 @@ export function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass rounded-xl p-6">
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Revenue & Expenses (NT$M)</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{_('dashboard.revenueExpenses')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
@@ -200,7 +201,7 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
             <div className="glass rounded-xl p-6">
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-4">Net Income Trend (NT$M)</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{_('dashboard.netIncomeTrend')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
@@ -215,7 +216,7 @@ export function DashboardPage() {
         </>
       )}
 
-      {!chartData.length && <EmptyState title="No financial data" description="Run seed.py or sync market data to populate reports." icon="chart" />}
+      {!chartData.length && <EmptyState title={_('dashboard.noData')} description={_('dashboard.noDataDesc')} icon="chart" />}
     </div>
   )
 }

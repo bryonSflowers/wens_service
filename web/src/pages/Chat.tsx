@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { chatApi } from '../api/client'
 import { Send, Loader2, Bot, User } from 'lucide-react'
+import { useT } from '../i18n'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -8,8 +9,9 @@ interface Message {
 }
 
 export function ChatPage() {
+  const _ = useT()
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hello! I can help you analyze Taiwan Mobile financial data. Ask me about revenue trends, monthly reports, or any financial metrics.' },
+    { role: 'assistant', content: _('chat.welcome') },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,7 +35,7 @@ export function ChatPage() {
       })
       setMessages((m) => [...m, { role: 'assistant', content: data.content }])
     } catch {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }])
+      setMessages((m) => [...m, { role: 'assistant', content: _('chat.error') }])
     } finally {
       setLoading(false)
     }
@@ -42,8 +44,8 @@ export function ChatPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
       <div>
-        <h1 className="text-2xl font-bold">LLM Chat</h1>
-        <p className="text-sm text-gray-500 mt-1">Chat with the AI analyst about financial data</p>
+        <h1 className="text-2xl font-bold">{_('chat.title')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{_('chat.subtitle')}</p>
       </div>
 
       <div className="flex-1 card mt-4 flex flex-col overflow-hidden">
@@ -86,7 +88,7 @@ export function ChatPage() {
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="Ask about financial data..."
+              placeholder={_('chat.placeholder')}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}

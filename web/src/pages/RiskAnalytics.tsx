@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Activity, TrendingDown, Shield, AlertTriangle, Search, RefreshCw, BarChart3, GitCompare } from 'lucide-react'
 import { riskApi } from '../api/client'
 import { StatCard } from '../components/ui/StatCard'
+import { useT } from '../i18n'
 import { PageLoading } from '../components/ui/Loading'
 import type { RiskAll } from '../types'
 
@@ -10,6 +11,7 @@ export function RiskAnalyticsPage() {
   const [risk, setRisk] = useState<RiskAll | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const _ = useT()
 
   const fetchRisk = async () => {
     if (!ticker.trim()) return
@@ -25,16 +27,16 @@ export function RiskAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text)]">Risk Analytics</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">Quantitative risk metrics powered by yfinance</p>
+        <h1 className="text-2xl font-bold text-[var(--text)]">{_('risk.title')}</h1>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">{_('risk.subtitle')}</p>
       </div>
 
       <div className="card">
         <div className="card-body flex gap-2">
-          <input className="input max-w-xs" placeholder="Ticker (e.g., 3045.TW)" value={ticker}
+          <input className="input max-w-xs" placeholder={_('risk.tickerPlaceholder')} value={ticker}
             onChange={(e) => setTicker(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && fetchRisk()} />
           <button className="btn-primary" onClick={fetchRisk} disabled={loading || !ticker.trim()}>
-            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Analyze
+            {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} {_('risk.analyze')}
           </button>
         </div>
       </div>
@@ -45,19 +47,19 @@ export function RiskAnalyticsPage() {
       {risk && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="Annualized Vol" value={risk.annualized_volatility_pct != null ? `${risk.annualized_volatility_pct.toFixed(2)}%` : '-'} icon={Activity}
+            <StatCard label={_('risk.annualizedVol')} value={risk.annualized_volatility_pct != null ? `${risk.annualized_volatility_pct.toFixed(2)}%` : '-'} icon={Activity}
               trend={{ value: (risk.annualized_volatility_pct ?? 0) < 20 ? 'Low' : (risk.annualized_volatility_pct ?? 0) < 40 ? 'Moderate' : 'High', positive: (risk.annualized_volatility_pct ?? 0) < 30 }} />
-            <StatCard label="Sharpe Ratio" value={risk.sharpe_ratio != null ? risk.sharpe_ratio.toFixed(2) : '-'} icon={BarChart3}
+            <StatCard label={_('risk.sharpeRatio')} value={risk.sharpe_ratio != null ? risk.sharpe_ratio.toFixed(2) : '-'} icon={BarChart3}
               trend={{ value: 'Risk-adjusted return', positive: (risk.sharpe_ratio ?? 0) > 1 }} />
-            <StatCard label="Max Drawdown" value={risk.max_drawdown_pct != null ? `${risk.max_drawdown_pct.toFixed(2)}%` : '-'} icon={TrendingDown}
+            <StatCard label={_('risk.maxDrawdown')} value={risk.max_drawdown_pct != null ? `${risk.max_drawdown_pct.toFixed(2)}%` : '-'} icon={TrendingDown}
               trend={{ value: 'Peak-to-trough', positive: (risk.max_drawdown_pct ?? 0) > -20 }} />
-            <StatCard label="VaR (95% Daily)" value={risk.var_95_daily_pct != null ? `${risk.var_95_daily_pct.toFixed(2)}%` : '-'} icon={Shield}
+            <StatCard label={_('risk.var95')} value={risk.var_95_daily_pct != null ? `${risk.var_95_daily_pct.toFixed(2)}%` : '-'} icon={Shield}
               trend={{ value: 'Worst daily loss', positive: (risk.var_95_daily_pct ?? 0) > -5 }} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><GitCompare className="w-4 h-4" /> Beta vs. Index</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><GitCompare className="w-4 h-4" /> {_('risk.beta')}</h3>
               {risk.beta_vs_index != null ? (
                 <div className="space-y-3">
                   <div className="flex items-baseline gap-2">
@@ -78,16 +80,16 @@ export function RiskAnalyticsPage() {
             </div>
 
             <div className="card p-6">
-              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><Shield className="w-4 h-4" /> Risk Interpretation</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4 flex items-center gap-2"><Shield className="w-4 h-4" /> {_('risk.interpretation')}</h3>
               <div className="space-y-3 text-sm">
                 {[
-                  { label: 'Risk Profile', value: (risk.annualized_volatility_pct ?? 0) < 20 ? 'Low' : (risk.annualized_volatility_pct ?? 0) < 40 ? 'Moderate' : 'High',
+                  { label: _('risk.riskProfile'), value: (risk.annualized_volatility_pct ?? 0) < 20 ? _('risk.low') : (risk.annualized_volatility_pct ?? 0) < 40 ? _('risk.moderate') : _('risk.high'),
                     color: (risk.annualized_volatility_pct ?? 0) < 20 ? 'text-green-600 dark:text-green-400' : (risk.annualized_volatility_pct ?? 0) < 40 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500 dark:text-red-400' },
-                  { label: 'Return Efficiency', value: (risk.sharpe_ratio ?? 0) > 1 ? 'Good' : (risk.sharpe_ratio ?? 0) > 0 ? 'Acceptable' : 'Poor',
+                  { label: _('risk.returnEfficiency'), value: (risk.sharpe_ratio ?? 0) > 1 ? _('risk.good') : (risk.sharpe_ratio ?? 0) > 0 ? _('risk.acceptable') : _('risk.poor'),
                     color: (risk.sharpe_ratio ?? 0) > 1 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400' },
-                  { label: 'Downside Risk', value: (risk.max_drawdown_pct ?? 0) > -15 ? 'Controlled' : (risk.max_drawdown_pct ?? 0) > -30 ? 'Moderate' : 'Severe',
+                  { label: _('risk.downsideRisk'), value: (risk.max_drawdown_pct ?? 0) > -15 ? _('risk.controlled') : (risk.max_drawdown_pct ?? 0) > -30 ? _('risk.moderate') : _('risk.severe'),
                     color: (risk.max_drawdown_pct ?? 0) > -15 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400' },
-                  { label: 'Market Sensitivity', value: (risk.beta_vs_index ?? 1) < 0.8 ? 'Defensive' : (risk.beta_vs_index ?? 1) < 1.2 ? 'Neutral' : 'Aggressive',
+                  { label: _('risk.marketSensitivity'), value: (risk.beta_vs_index ?? 1) < 0.8 ? _('risk.defensive') : (risk.beta_vs_index ?? 1) < 1.2 ? _('risk.neutral') : _('risk.aggressive'),
                     color: (risk.beta_vs_index ?? 1) < 0.8 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400' },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="flex justify-between py-2 border-b border-[var(--card-border)]">
@@ -104,9 +106,9 @@ export function RiskAnalyticsPage() {
             {risk.var_95_daily_pct != null && (
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { label: 'Daily (95%)', value: risk.var_95_daily_pct, color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' },
-                  { label: 'Weekly (95%)', value: risk.var_95_daily_pct * Math.sqrt(5), color: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' },
-                  { label: 'Monthly (95%)', value: risk.var_95_daily_pct * Math.sqrt(21), color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400' },
+                  { label: _('risk.daily'), value: risk.var_95_daily_pct, color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' },
+                  { label: _('risk.weekly'), value: risk.var_95_daily_pct * Math.sqrt(5), color: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' },
+                  { label: _('risk.monthly'), value: risk.var_95_daily_pct * Math.sqrt(21), color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400' },
                 ].map(({ label, value, color }) => (
                   <div key={label} className={`text-center p-4 rounded-lg ${color}`}>
                     <p className="text-2xl font-bold font-mono">{value.toFixed(2)}%</p>
