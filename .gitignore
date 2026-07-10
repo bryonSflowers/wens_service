@@ -11,3 +11,6 @@ wheels/
 
 # Environment files
 .env
+
+# Uploaded / downloaded data files
+data_downloads/
