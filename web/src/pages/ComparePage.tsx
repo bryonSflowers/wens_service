@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   BarChart3, Activity, RefreshCw, AlertTriangle, GitCompare,
-  TrendingUp, BarChart as BarIcon, BrainCircuit,
+  TrendingUp, BarChart as BarIcon, BrainCircuit, Send,
 } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -40,6 +40,10 @@ export function ComparePage() {
   const [priceHistory, setPriceHistory] = useState<Record<string, { date: string; price: number }[]>>({})
   const [analysis, setAnalysis] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const chatRef = useRef<HTMLDivElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -71,6 +75,7 @@ export function ComparePage() {
       // Fetch LLM analysis in parallel
       setAnalysisLoading(true)
       setAnalysis('')
+      setChatMessages([])
       client.get('/compare/analyze', { params: { tickers: selected.join(',') } })
         .then((r) => setAnalysis(r.data.analysis || ''))
         .catch(() => setAnalysis(''))
@@ -81,8 +86,31 @@ export function ComparePage() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    chatRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
   const val = (v: number | null | undefined, suffix = '', decimals = 2) =>
     v != null ? `${v.toFixed(decimals)}${suffix}` : '-'
+
+  const sendChat = async () => {
+    if (!chatInput.trim() || chatLoading) return
+    const userMsg = { role: 'user' as const, content: chatInput }
+    setChatMessages((m) => [...m, userMsg])
+    setChatInput('')
+    setChatLoading(true)
+    try {
+      const res = await client.post('/compare/chat', {
+        tickers: selected,
+        analysis,
+        messages: [...chatMessages, userMsg],
+      })
+      setChatMessages((m) => [...m, { role: 'assistant', content: res.data.reply }])
+    } catch {
+      setChatMessages((m) => [...m, { role: 'assistant', content: 'Sorry, I encountered an error.' }])
+    }
+    setChatLoading(false)
+  }
 
   const pct = (v: number | null | undefined) =>
     v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` : '-'
@@ -286,9 +314,54 @@ export function ComparePage() {
                 <div className="skeleton h-4 w-3/4" />
                 <div className="skeleton h-4 w-5/6" />
                 <div className="skeleton h-4 w-2/3" />
+                <div className="skeleton h-4 w-1/2" />
               </div>
             ) : (
-              <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap">{analysis}</div>
+              <>
+                <div className="prose-report text-sm leading-relaxed whitespace-pre-wrap mb-6">{analysis}</div>
+
+                {/* Chat messages */}
+                <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                      <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white rounded-br-md'
+                          : 'bg-[var(--sidebar-link-hover)] text-[var(--text)] rounded-bl-md'
+                      }`}>
+                        <div className="whitespace-pre-wrap">{msg.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex gap-2">
+                      <div className="max-w-[80%] rounded-xl rounded-bl-md px-4 py-2.5 text-sm bg-[var(--sidebar-link-hover)]">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatRef} />
+                </div>
+
+                {/* Chat input */}
+                <div className="flex gap-2 border-t border-[var(--card-border)] pt-3">
+                  <input
+                    className="input flex-1"
+                    placeholder="Ask a follow-up about these companies..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
+                    disabled={chatLoading}
+                  />
+                  <button className="btn-primary" onClick={sendChat} disabled={chatLoading || !chatInput.trim()}>
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>

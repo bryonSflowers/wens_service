@@ -264,3 +264,51 @@ End with a clear verdict: which is best positioned for the next 12 months, and w
         "analysis": analysis,
         "generated_at": __import__("datetime").datetime.utcnow().isoformat(),
     }
+
+
+@router.post("/chat")
+async def compare_chat(body: dict):
+    """Follow-up chat about a comparison. Body: { tickers: [...], analysis: str, messages: [{role, content}] }"""
+    tickers = body.get("tickers", [])
+    analysis = body.get("analysis", "")
+    messages = body.get("messages", [])
+
+    if not messages:
+        raise HTTPException(400, "No messages provided")
+
+    system = f"""You are a senior equity research analyst. You have already produced this analysis of {', '.join(tickers)}:
+
+{analysis[:4000]}
+
+The user will ask follow-up questions. Answer using the analysis above and your financial knowledge.
+Be specific, reference numbers, and compare companies directly."""
+
+    try:
+        provider = settings.llm_backend
+        if provider == "claude":
+            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            claude_msgs = [m for m in messages if m["role"] in ("user", "assistant")]
+            resp = await client.messages.create(
+                model=os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514"),
+                max_tokens=2000,
+                system=system,
+                messages=claude_msgs,
+            )
+            reply = "".join(block.text for block in resp.content if block.type == "text")
+        else:
+            client = AsyncOpenAI(
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+                api_key="ollama",
+            )
+            all_msgs = [{"role": "system", "content": system}] + messages
+            resp = await client.chat.completions.create(
+                model=os.getenv("OLLAMA_MODEL", "qwen2.5:7b"),
+                messages=all_msgs,
+                max_tokens=2000,
+            )
+            reply = resp.choices[0].message.content or ""
+    except Exception as e:
+        logger.error("Follow-up LLM failed: %s", e)
+        reply = f"Error: {e}"
+
+    return {"reply": reply}
