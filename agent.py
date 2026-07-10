@@ -211,33 +211,203 @@ async def chat_completion(
             api_key=cfg.get("api_key", "ollama"),
         )
         model = cfg.get("model", OLLAMA_MODEL)
-        kwargs = {"model": model, "messages": messages, "max_tokens": max_tokens}
+        full_messages: list[dict] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *messages,
+        ]
+        tools = _to_openai_tools(TOOL_DEFINITIONS)
+        kwargs: dict = {
+            "model": model,
+            "messages": full_messages,
+            "max_tokens": max_tokens,
+            "tools": tools,
+        }
         if temperature is not None:
             kwargs["temperature"] = temperature
 
-        response = await client.chat.completions.create(**kwargs)
-        choice = response.choices[0]
-        return choice.message.content or "", _metadata(
-            id=response.id,
-            model=model,
-            finish_reason=choice.finish_reason,
-            tokens_used=response.usage.total_tokens if response.usage else None,
-        )
+        while True:
+            response = await client.chat.completions.create(**kwargs)
+            choice = response.choices[0]
+            msg = choice.message
+
+            assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
+            if msg.tool_calls:
+                assistant_turn["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            full_messages.append(assistant_turn)
+
+            if choice.finish_reason == "stop" or not msg.tool_calls:
+                return msg.content or "", _metadata(
+                    id=response.id,
+                    model=model,
+                    finish_reason=choice.finish_reason,
+                    tokens_used=response.usage.total_tokens if response.usage else None,
+                )
+
+            for tc in msg.tool_calls:
+                result = await execute_tool(
+                    tc.function.name,
+                    json.loads(tc.function.arguments),
+                    pool,
+                )
+                full_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result,
+                })
+
+        return "Chat ended unexpectedly.", _metadata(model=model)
 
     client = anthropic.AsyncAnthropic()
     model = cfg.get("model", CLAUDE_MODEL)
-    kwargs = {"model": model, "max_tokens": max_tokens, "messages": messages}
+    full_messages = list(messages)
+    kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": full_messages,
+        "system": SYSTEM_PROMPT,
+        "tools": TOOL_DEFINITIONS,
+    }
     if temperature is not None:
         kwargs["temperature"] = temperature
 
-    response = await client.messages.create(**kwargs)
-    content = "".join(block.text for block in response.content if block.type == "text")
-    return content, _metadata(
-        id=response.id,
-        model=model,
-        finish_reason=response.stop_reason,
-        tokens_used=None,
-    )
+    while True:
+        response = await client.messages.create(**kwargs)
+
+        full_messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            for block in response.content:
+                if block.type == "text":
+                    return block.text, _metadata(id=response.id, model=model)
+            return "", _metadata(id=response.id, model=model)
+
+        if response.stop_reason != "tool_use":
+            return "Chat ended unexpectedly.", _metadata(id=response.id, model=model)
+
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = await execute_tool(block.name, block.input, pool)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+
+        full_messages.append({"role": "user", "content": tool_results})
+
+
+async def _run_tool_loop(
+    messages: list[dict],
+    pool: asyncpg.Pool,
+    provider: str,
+    model: str,
+    max_tokens: int,
+    temperature: Optional[float] = None,
+) -> str:
+    if provider == "ollama":
+        client = AsyncOpenAI(
+            base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+            api_key="ollama",
+        )
+        full_messages: list[dict] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            *messages,
+        ]
+        tools = _to_openai_tools(TOOL_DEFINITIONS)
+        kwargs: dict = {
+            "model": model,
+            "messages": full_messages,
+            "max_tokens": max_tokens,
+            "tools": tools,
+        }
+        if temperature is not None:
+            kwargs["temperature"] = temperature
+
+        while True:
+            response = await client.chat.completions.create(**kwargs)
+            choice = response.choices[0]
+            msg = choice.message
+
+            assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
+            if msg.tool_calls:
+                assistant_turn["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ]
+            full_messages.append(assistant_turn)
+
+            if choice.finish_reason == "stop" or not msg.tool_calls:
+                return msg.content or ""
+
+            for tc in msg.tool_calls:
+                result = await execute_tool(
+                    tc.function.name,
+                    json.loads(tc.function.arguments),
+                    pool,
+                )
+                full_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result,
+                })
+
+        return ""
+
+    client = anthropic.AsyncAnthropic()
+    full_messages = list(messages)
+    kwargs = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": full_messages,
+        "system": SYSTEM_PROMPT,
+        "tools": TOOL_DEFINITIONS,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+
+    while True:
+        response = await client.messages.create(**kwargs)
+
+        full_messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            for block in response.content:
+                if block.type == "text":
+                    return block.text
+            return ""
+
+        if response.stop_reason != "tool_use":
+            return ""
+
+        tool_results = []
+        for block in response.content:
+            if block.type == "tool_use":
+                result = await execute_tool(block.name, block.input, pool)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+
+        full_messages.append({"role": "user", "content": tool_results})
 
 
 async def chat_completion_stream(
@@ -249,30 +419,9 @@ async def chat_completion_stream(
 ) -> AsyncGenerator[dict, None]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
+    model = cfg.get("model", OLLAMA_MODEL if provider == "ollama" else CLAUDE_MODEL)
 
-    if provider == "ollama":
-        client = AsyncOpenAI(
-            base_url=cfg.get("base_url", OLLAMA_BASE_URL),
-            api_key=cfg.get("api_key", "ollama"),
-        )
-        model = cfg.get("model", OLLAMA_MODEL)
-        kwargs = {"model": model, "messages": messages, "max_tokens": max_tokens, "stream": True}
-        if temperature is not None:
-            kwargs["temperature"] = temperature
-
-        stream = await client.chat.completions.create(**kwargs)
-        async for chunk in stream:
-            delta = chunk.choices[0].delta if chunk.choices else None
-            if delta and delta.content:
-                yield {"type": "content", "text": delta.content}
-        return
-
-    client = anthropic.AsyncAnthropic()
-    model = cfg.get("model", CLAUDE_MODEL)
-    kwargs = {"model": model, "max_tokens": max_tokens, "messages": messages, "stream": True}
-    if temperature is not None:
-        kwargs["temperature"] = temperature
-
-    async with client.messages.stream(**kwargs) as stream:
-        async for text in stream.text_stream:
-            yield {"type": "content", "text": text}
+    text = await _run_tool_loop(
+        messages, pool, provider, model, max_tokens, temperature
+    )
+    yield {"type": "content", "text": text}

@@ -29,6 +29,12 @@ from routers import (
     export,
     admin,
     llm_proxy,
+    portfolios,
+    risk,
+    fundamentals,
+    chart,
+    watchlist,
+    screener,
 )
 
 load_dotenv()
@@ -95,6 +101,12 @@ app.include_router(generated_reports.router)
 app.include_router(export.router)
 app.include_router(admin.router)
 app.include_router(llm_proxy.router)
+app.include_router(portfolios.router)
+app.include_router(risk.router)
+app.include_router(fundamentals.router)
+app.include_router(chart.router)
+app.include_router(watchlist.router)
+app.include_router(screener.router)
 
 
 @app.get("/health", response_model=HealthResponse)

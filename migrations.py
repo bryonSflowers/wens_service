@@ -124,4 +124,101 @@ MIGRATIONS = [
     CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
     """,
+    # 003 — Portfolio tables
+    """
+    CREATE TABLE IF NOT EXISTS portfolios (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name        VARCHAR(256) NOT NULL,
+        description TEXT,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        updated_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS portfolio_holdings (
+        id          SERIAL PRIMARY KEY,
+        portfolio_id INTEGER NOT NULL REFERENCES portfolios(id) ON DELETE CASCADE,
+        ticker      VARCHAR(16) NOT NULL,
+        shares      NUMERIC(18, 6) NOT NULL,
+        avg_cost    NUMERIC(15, 4) NOT NULL,
+        notes       TEXT,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        updated_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    # 004 — Fundamentals cache
+    """
+    CREATE TABLE IF NOT EXISTS fundamentals (
+        ticker              VARCHAR(16) PRIMARY KEY,
+        pe_ratio            NUMERIC(12, 4),
+        pb_ratio            NUMERIC(12, 4),
+        ev_ebitda           NUMERIC(15, 4),
+        roe                 NUMERIC(8, 4),
+        debt_to_equity      NUMERIC(12, 4),
+        eps                 NUMERIC(12, 4),
+        eps_growth_pct      NUMERIC(8, 2),
+        dividend_yield      NUMERIC(8, 4),
+        dividend_payout_ratio NUMERIC(8, 4),
+        market_cap          NUMERIC(20, 2),
+        sector              VARCHAR(128),
+        industry            VARCHAR(128),
+        updated_at          TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    # 005 — Price history for charting
+    """
+    CREATE TABLE IF NOT EXISTS price_history (
+        id      SERIAL PRIMARY KEY,
+        ticker  VARCHAR(16) NOT NULL,
+        date    DATE NOT NULL,
+        open    NUMERIC(12, 4),
+        high    NUMERIC(12, 4),
+        low     NUMERIC(12, 4),
+        close   NUMERIC(12, 4),
+        volume  BIGINT,
+        UNIQUE (ticker, date)
+    );
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_price_history_ticker_date ON price_history(ticker, date);
+    """,
+    # 006 — Watchlists
+    """
+    CREATE TABLE IF NOT EXISTS watchlists (
+        id          SERIAL PRIMARY KEY,
+        user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name        VARCHAR(256) NOT NULL,
+        description TEXT,
+        created_at  TIMESTAMP DEFAULT NOW(),
+        updated_at  TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS watchlist_items (
+        id          SERIAL PRIMARY KEY,
+        watchlist_id INTEGER NOT NULL REFERENCES watchlists(id) ON DELETE CASCADE,
+        ticker      VARCHAR(16) NOT NULL,
+        notes       TEXT,
+        added_at    TIMESTAMP DEFAULT NOW(),
+        UNIQUE (watchlist_id, ticker)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS price_alerts (
+        id              SERIAL PRIMARY KEY,
+        user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        ticker          VARCHAR(16) NOT NULL,
+        alert_type      VARCHAR(8) NOT NULL CHECK (alert_type IN ('above', 'below')),
+        threshold_price NUMERIC(15, 4) NOT NULL,
+        is_triggered    BOOLEAN NOT NULL DEFAULT FALSE,
+        is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+        delivery_method VARCHAR(16) NOT NULL DEFAULT 'db',
+        triggered_at    TIMESTAMP,
+        created_at      TIMESTAMP DEFAULT NOW()
+    );
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_price_alerts_active ON price_alerts(is_active, ticker);
+    """,
 ]
