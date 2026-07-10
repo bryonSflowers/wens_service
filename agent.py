@@ -232,6 +232,17 @@ async def generate_report(
     provider = cfg["provider"]
     if provider == "ollama":
         return await _generate_ollama(query, pool, cfg, user_id)
+    api_key = os.getenv("ANTHROPIC_API_KEY", "") or (cfg.get("api_key") or "")
+    if not api_key:
+        return (
+            "⚠️ **LLM not configured.**\n\n"
+            "To use AI-powered report generation, set the `ANTHROPIC_API_KEY` "
+            "environment variable with your Anthropic API key, or configure an "
+            "LLM provider in the Admin → LLM Configs page.\n\n"
+            "You can also switch to the Ollama backend by setting "
+            "`LLM_BACKEND=ollama` with a valid `OLLAMA_BASE_URL`.",
+            {"model": "none", "finish_reason": "config_error"},
+        )
     return await _generate_claude(query, pool, cfg, user_id)
 
 
