@@ -57,9 +57,9 @@ export function TickerBar() {
       <div className="ticker-track flex items-center h-full px-4">
         {doubled.map((item, i) => (
           <div key={i} className="flex items-center gap-3 shrink-0 text-xs">
-            <span className="font-semibold text-slate-100">{getTickerName(item.ticker)}</span>
-            <span className="text-slate-500">{item.ticker.replace('.TW', '')}</span>
-            <span className="font-mono text-slate-300 min-w-[5ch] text-right">
+            <span className="font-semibold text-white">{getTickerName(item.ticker)}</span>
+            <span className="text-slate-400 text-[10px]">{item.ticker.replace('.TW', '')}</span>
+            <span className="font-mono font-medium text-white min-w-[6ch] text-right tabular-nums">
               {item.price != null ? `$${item.price.toFixed(2)}` : '--'}
             </span>
           </div>
