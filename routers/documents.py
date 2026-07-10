@@ -106,6 +106,7 @@ async def list_documents(
     pool = await db_service.get_pool()
     return await db_service.get_paginated(
         pool, "uploaded_docs",
+        columns="id, user_id, filename, file_type, raw_tables, word_count, metadata, created_at",
         where="user_id = $1",
         params=[current_user["id"]],
         order_by="created_at DESC",

@@ -326,7 +326,7 @@ export interface UploadedDoc {
   user_id: number
   filename: string
   file_type: string
-  content: string
+  content?: string
   raw_tables: unknown[] | null
   word_count: number
   metadata: Record<string, unknown> | null

@@ -89,8 +89,8 @@ export function DocumentsPage() {
     load()
   }
 
-  const formatSize = (content: string) => {
-    const bytes = new Blob([content]).size
+  const formatSize = (wordCount: number) => {
+    const bytes = wordCount * 6
     if (bytes < 1024) return `${bytes}B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
@@ -154,7 +154,7 @@ export function DocumentsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--text)] truncate">{d.filename}</p>
                     <p className="text-xs text-[var(--text-secondary)]">
-                      {d.word_count.toLocaleString()} words <span className="mx-1">·</span> {formatSize(d.content)}
+                      {d.word_count.toLocaleString()} words <span className="mx-1">·</span> {formatSize(d.word_count)}
                     </p>
                   </div>
                 </button>
