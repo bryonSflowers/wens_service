@@ -7,6 +7,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, RadarChart, Radar,
   PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ScatterChart, Scatter, ZAxis,
 } from 'recharts'
 import client from '../api/client'
 import { CompanySelector, COMPANY_COLORS } from '../components/ui/CompanySelector'
@@ -238,6 +239,67 @@ export function ComparePage() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+
+          {/* Cartesian Scatter Plot — Valuation vs Growth */}
+          {items.length >= 2 && (() => {
+            const scatterData = items.map((i) => ({
+              x: i.pe_ratio ?? 0,
+              y: i.eps_growth_pct != null ? i.eps_growth_pct * 100 : 0,
+              z: i.market_cap ?? 0,
+              ticker: i.ticker,
+              label: `${i.ticker}\nP/E: ${i.pe_ratio?.toFixed(1)}x\nEPS Growth: ${i.eps_growth_pct != null ? (i.eps_growth_pct * 100).toFixed(1) : '-'}%`,
+            }))
+            const xDomain = [Math.min(...scatterData.map(d => d.x)) * 0.85, Math.max(...scatterData.map(d => d.x)) * 1.15]
+            const yDomain = [Math.min(...scatterData.map(d => d.y)) * 0.85 || -5, Math.max(...scatterData.map(d => d.y)) * 1.15 || 20]
+            return (
+              <div className="card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-[var(--text)]">Valuation vs Growth — Cartesian Plot</h3>
+                  <span className="text-[10px] text-[var(--text-tertiary)]">Bubble size = Market Cap · X: P/E (cheaper →) · Y: EPS Growth %</span>
+                </div>
+                <ResponsiveContainer width="100%" height={360}>
+                  <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                    <XAxis dataKey="x" type="number" domain={xDomain} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                      label={{ value: 'P/E Ratio (x)', position: 'bottom', offset: 0, style: { fontSize: 10, fill: 'var(--text-tertiary)' } }} />
+                    <YAxis dataKey="y" type="number" domain={yDomain} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                      label={{ value: 'EPS Growth (%)', angle: -90, position: 'left', offset: 0, style: { fontSize: 10, fill: 'var(--text-tertiary)' } }} />
+                    <ZAxis dataKey="z" range={[400, 2000]} />
+                    <Tooltip cursor={{ strokeDasharray: '3 3' }}
+                      formatter={(value: any) => [value]}
+                      labelFormatter={() => ''}
+                      content={({ active, payload }: any) => {
+                        if (!active || !payload?.[0]) return null
+                        const d = payload[0].payload
+                        return (
+                          <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-xl p-3 text-xs">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COMPANY_COLORS[d.ticker] }} />
+                              <span className="font-bold text-[var(--text)]">{d.ticker}</span>
+                            </div>
+                            <div className="space-y-1 text-[var(--text-secondary)]">
+                              <p>P/E: <span className="font-mono text-[var(--text)]">{d.x.toFixed(1)}x</span></p>
+                              <p>EPS Growth: <span className="font-mono text-[var(--text)]">{d.y.toFixed(1)}%</span></p>
+                              <p>Market Cap: <span className="font-mono text-[var(--text)]">${(d.z / 1e9).toFixed(1)}B</span></p>
+                            </div>
+                          </div>
+                        )
+                      }}
+                    />
+                    <Legend formatter={(value: string) => <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{value}</span>} />
+                    {/* Quadrant labels */}
+                    <text x="15%" y="8%" fontSize={9} fill="var(--text-tertiary)" dominantBaseline="middle" textAnchor="middle">Cheap · High Growth</text>
+                    <text x="85%" y="8%" fontSize={9} fill="var(--text-tertiary)" dominantBaseline="middle" textAnchor="middle">Expensive · High Growth</text>
+                    <text x="15%" y="92%" fontSize={9} fill="var(--text-tertiary)" dominantBaseline="middle" textAnchor="middle">Cheap · Low Growth</text>
+                    <text x="85%" y="92%" fontSize={9} fill="var(--text-tertiary)" dominantBaseline="middle" textAnchor="middle">Expensive · Low Growth</text>
+                    {scatterData.map((d) => (
+                      <Scatter key={d.ticker} name={d.ticker} data={[d]} fill={COMPANY_COLORS[d.ticker] || '#3b82f6'} stroke="#fff" strokeWidth={1.5} />
+                    ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            )
+          })()}
 
           {/* Valuation Table */}
           <div className="card overflow-hidden">
