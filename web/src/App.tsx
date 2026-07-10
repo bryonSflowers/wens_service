@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/auth'
 import { Layout } from './components/layout/Layout'
@@ -27,12 +26,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const loadFromStorage = useAuthStore((s) => s.loadFromStorage)
-
-  useEffect(() => {
-    loadFromStorage()
-  }, [])
-
   return (
     <BrowserRouter>
       <Routes>
