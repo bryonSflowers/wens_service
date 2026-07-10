@@ -20,7 +20,9 @@ export function DocumentsPage() {
   const [docs, setDocs] = useState<UploadedDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [selected, setSelected] = useState<UploadedDoc | null>(null)
+  const [selectLoading, setSelectLoading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -37,6 +39,18 @@ export function DocumentsPage() {
     } catch {}
     setLoading(false)
   }, [page])
+
+  const selectDoc = async (id: number) => {
+    setSelectedId(id)
+    setSelectLoading(true)
+    try {
+      const res = await documentsApi.get(id)
+      setSelected(res.data)
+    } catch {
+      setSelected(null)
+    }
+    setSelectLoading(false)
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -132,9 +146,9 @@ export function DocumentsPage() {
           {docs.length === 0 ? <div className="card-body"><EmptyState title="No documents" description="Upload a file to get started." /></div> : (
             <div className="divide-y divide-[var(--card-border)] max-h-[500px] overflow-y-auto">
               {docs.map((d) => (
-                <button key={d.id} onClick={() => setSelected(d)}
+                <button key={d.id} onClick={() => selectDoc(d.id)}
                   className={`w-full text-left p-4 hover:bg-[var(--sidebar-link-hover)] transition-colors flex items-center gap-3 ${
-                    selected?.id === d.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    selectedId === d.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}>
                   {fileIcon(d.file_type)}
                   <div className="flex-1 min-w-0">
@@ -153,9 +167,17 @@ export function DocumentsPage() {
         </div>
 
         <div className="lg:col-span-2 card">
-          {!selected ? (
+          {!selectedId ? (
             <div className="card-body">
               <EmptyState title="Select a document" description="Click a file on the left to view its parsed content." icon="inbox" />
+            </div>
+          ) : selectLoading ? (
+            <div className="card-body flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            </div>
+          ) : !selected ? (
+            <div className="card-body">
+              <EmptyState title="Error loading document" description="Could not load the document content." icon="alert" />
             </div>
           ) : (
             <>
@@ -175,7 +197,11 @@ export function DocumentsPage() {
                 </button>
               </div>
               <div className="card-body max-h-[600px] overflow-y-auto">
-                {selected.raw_tables && selected.raw_tables.length > 0 ? (
+                {!selected.content ? (
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
+                    <p className="text-sm">No extractable content found in this file.</p>
+                  </div>
+                ) : selected.raw_tables && Array.isArray(selected.raw_tables) && selected.raw_tables.length > 0 ? (
                   <div className="space-y-6">
                     {(selected.raw_tables as string[][][]).map((table, ti) => (
                       <div key={ti}>
