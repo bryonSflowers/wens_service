@@ -4,6 +4,7 @@ import { Search, RefreshCw, AlertTriangle } from 'lucide-react'
 import { chartApi } from '../api/client'
 import { useT } from '../i18n'
 import { ChartSkeleton } from '../components/ui/Skeleton'
+import { TickerDropdown } from '../components/ui/TickerDropdown'
 import type { OHLCVItem } from '../types'
 
 const PERIODS = [
@@ -136,37 +137,33 @@ export function MarketChartPage() {
         <p className="text-sm text-[var(--text-secondary)] mt-1">{_('chart.subtitle')}</p>
       </div>
 
-      <div className="card">
-        <div className="card-body flex flex-wrap items-center gap-3">
-          <div className="flex gap-2">
-            <input
-              className="input max-w-[140px]"
-              placeholder={_('chart.tickerPlaceholder')}
-              value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchData(days)}
-            />
-            <button className="btn-primary" onClick={() => fetchData(days)} disabled={loading || !ticker.trim()}>
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            </button>
-            <button className="btn-secondary" onClick={syncData} disabled={syncing}>
-              <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              {_('common.sync')}
-            </button>
-          </div>
-          <div className="pill-group ml-auto">
-            {PERIODS.map((p) => (
-              <button
-                key={p.label}
-                className={`pill ${days === p.days ? 'active' : ''}`}
-                onClick={() => { setDays(p.days); fetchData(p.days) }}
-              >
-                {p.label}
+        <div className="card">
+          <div className="card-body flex flex-wrap items-center gap-3">
+            <div className="flex gap-2 items-end">
+              <div className="w-44">
+                <TickerDropdown value={ticker} onChange={(v) => { setTicker(v); setTimeout(() => fetchData(days), 100) }} />
+              </div>
+              <button className="btn-primary h-[38px]" onClick={() => fetchData(days)} disabled={loading || !ticker.trim()}>
+                {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               </button>
-            ))}
+              <button className="btn-secondary h-[38px]" onClick={syncData} disabled={syncing}>
+                <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                {_('common.sync')}
+              </button>
+            </div>
+            <div className="pill-group ml-auto">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.label}
+                  className={`pill ${days === p.days ? 'active' : ''}`}
+                  onClick={() => { setDays(p.days); fetchData(p.days) }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
       {error && <div className="card p-4 text-red-500 dark:text-red-400 flex items-center gap-2 text-sm"><AlertTriangle className="w-4 h-4" />{error}</div>}
 
