@@ -47,6 +47,8 @@ from routers import (
     insights,
     notifications,
     comparison,
+    optimizer,
+    regimes,
 )
 
 load_dotenv()
@@ -152,6 +154,8 @@ app.include_router(stress_test.router)
 app.include_router(insights.router)
 app.include_router(notifications.router)
 app.include_router(comparison.router)
+app.include_router(optimizer.router)
+app.include_router(regimes.router)
 
 
 @app.get("/health", response_model=HealthResponse)

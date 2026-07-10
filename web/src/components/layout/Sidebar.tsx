@@ -21,6 +21,8 @@ const analyticsNavItems = [
   { to: '/screener', icon: Search, label: 'sidebar.screener' },
   { to: '/compare', icon: GitCompare, label: 'Compare' },
   { to: '/financials', icon: BarChart3, label: 'Financials' },
+  { to: '/optimizer', icon: BarChart3, label: 'Optimizer' },
+  { to: '/regimes', icon: Activity, label: 'Regimes' },
 ]
 
 const dataNavItems = [
