@@ -26,8 +26,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "") or os.getenv("DEEPSEEK_API_KEY"
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
-OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "deepseek-v4-flash")
-OPENCODE_BASE_URL = os.getenv("OPENCODE_BASE_URL", "https://api.opencode.ai/v1")
+OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "deepseek-v4-flash-free")
+OPENCODE_BASE_URL = os.getenv("OPENCODE_BASE_URL", "https://opencode.ai/zen/v1")
 
 SYSTEM_PROMPT = """You are a senior financial analyst with access to a database of monthly financial reports and uploaded company documents.
 
