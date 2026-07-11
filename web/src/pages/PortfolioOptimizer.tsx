@@ -125,8 +125,8 @@ export function PortfolioOptimizerPage() {
                   Max Sharpe Portfolio
                 </h3>
                 <div className="text-xs text-[var(--text-secondary)]">
-                  Return: <span className="font-mono font-bold text-green-600">{(result.maxSharpe.annReturn * 100).toFixed(2)}%</span>
-                  {' · '}Vol: <span className="font-mono font-bold">{(result.maxSharpe.annVol * 100).toFixed(2)}%</span>
+                  Return: <span className="font-mono font-bold text-green-600">{result.maxSharpe.annReturn.toFixed(2)}%</span>
+                  {' · '}Vol: <span className="font-mono font-bold">{result.maxSharpe.annVol.toFixed(2)}%</span>
                   {' · '}Sharpe: <span className="font-mono font-bold">{result.maxSharpe.sharpe.toFixed(2)}</span>
                 </div>
               </div>
@@ -162,8 +162,8 @@ export function PortfolioOptimizerPage() {
                   Minimum Variance Portfolio
                 </h3>
                 <div className="text-xs text-[var(--text-secondary)]">
-                  Return: <span className="font-mono font-bold">{(result.minVariance.annReturn * 100).toFixed(2)}%</span>
-                  {' · '}Vol: <span className="font-mono font-bold text-green-600">{(result.minVariance.annVol * 100).toFixed(2)}%</span>
+                  Return: <span className="font-mono font-bold">{result.minVariance.annReturn.toFixed(2)}%</span>
+                  {' · '}Vol: <span className="font-mono font-bold text-green-600">{result.minVariance.annVol.toFixed(2)}%</span>
                   {' · '}Sharpe: <span className="font-mono font-bold">{result.minVariance.sharpe.toFixed(2)}</span>
                 </div>
               </div>
@@ -206,10 +206,10 @@ export function PortfolioOptimizerPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
                 <XAxis dataKey="x" type="number" domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                   label={{ value: 'Volatility (%)', position: 'bottom', offset: 0, style: { fontSize: 10, fill: 'var(--text-tertiary)' } }}
-                  tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`} />
+                  tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
                 <YAxis dataKey="y" type="number" domain={['auto', 'auto']} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                   label={{ value: 'Expected Return (%)', angle: -90, position: 'left', offset: 0, style: { fontSize: 10, fill: 'var(--text-tertiary)' } }}
-                  tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
+                  tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
                 <ZAxis range={[100, 100]} />
                 <Tooltip cursor={{ strokeDasharray: '3 3' }}
                   content={({ active, payload }: any) => {
@@ -219,8 +219,8 @@ export function PortfolioOptimizerPage() {
                       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-xl p-3 text-xs">
                         <div className="space-y-1">
                           <p className="font-medium text-[var(--text)]">{d.name || 'Frontier Point'}</p>
-                          <p>Return: <span className="font-mono">{(d.y * 100).toFixed(2)}%</span></p>
-                          <p>Vol: <span className="font-mono">{(d.x * 100).toFixed(2)}%</span></p>
+                          <p>Return: <span className="font-mono">{d.y.toFixed(2)}%</span></p>
+                          <p>Vol: <span className="font-mono">{d.x.toFixed(2)}%</span></p>
                         </div>
                       </div>
                     )
@@ -258,8 +258,8 @@ export function PortfolioOptimizerPage() {
                           {a.ticker}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">{(a.annReturn * 100).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-right font-mono">{(a.annVol * 100).toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-right font-mono">{a.annReturn.toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-right font-mono">{a.annVol.toFixed(2)}%</td>
                       <td className="px-4 py-3 text-right font-mono">{a.sharpe.toFixed(2)}</td>
                     </tr>
                   ))}
