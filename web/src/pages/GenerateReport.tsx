@@ -19,7 +19,7 @@ export function GenerateReportPage() {
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
   const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant' | 'structured'>('standard')
-  const [llmProvider, setLlmProvider] = useState<'deepseek' | 'claude' | 'openai' | 'opencode'>('claude')
+  const [llmProvider, setLlmProvider] = useState<'deepseek' | 'claude' | 'openai' | 'opencode'>('opencode')
   const [structuredSections, setStructuredSections] = useState<any[] | null>(null)
   const [quantPrompt, setQuantPrompt] = useState('Use Monte Carlo simulation and Bayesian inference to analyze return distributions, tail risk, and probability of loss over multiple time horizons. Compute Value at Risk (VaR95/99), Conditional VaR, and stress test scenarios. Present results with confidence intervals and statistical significance levels.')
   const [report, setReport] = useState('')

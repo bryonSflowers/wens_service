@@ -444,7 +444,7 @@ async def generate_report(
     providers_to_try = [provider] if provider else ["deepseek", "openai", "claude"]
 
     # Ordered fallback: selected provider first, then others
-    ordered = [provider] if provider else ["opencode", "deepseek", "openai", "claude"]
+    ordered = [provider] if provider else ["opencode", "claude", "deepseek", "openai"]
     seen = set()
     for prov in ordered + ["opencode", "deepseek", "openai", "claude"]:
         if prov in seen: continue
