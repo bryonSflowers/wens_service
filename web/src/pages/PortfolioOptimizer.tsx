@@ -16,7 +16,7 @@ interface OptimizerPortfolio {
   weights: Record<string, number>
   annReturn: number
   annVol: number
-  sharpe: number
+  sharpe?: number
 }
 
 interface FrontierPoint {
@@ -127,7 +127,7 @@ export function PortfolioOptimizerPage() {
                 <div className="text-xs text-[var(--text-secondary)]">
                   Return: <span className="font-mono font-bold text-green-600">{result.maxSharpe.annReturn.toFixed(2)}%</span>
                   {' · '}Vol: <span className="font-mono font-bold">{result.maxSharpe.annVol.toFixed(2)}%</span>
-                  {' · '}Sharpe: <span className="font-mono font-bold">{result.maxSharpe.sharpe.toFixed(2)}</span>
+                  {' · '}Sharpe: <span className="font-mono font-bold">{result.maxSharpe.sharpe ? result.maxSharpe.sharpe.toFixed(2) : '-'}</span>
                 </div>
               </div>
               <div className="p-0">
@@ -164,7 +164,7 @@ export function PortfolioOptimizerPage() {
                 <div className="text-xs text-[var(--text-secondary)]">
                   Return: <span className="font-mono font-bold">{result.minVariance.annReturn.toFixed(2)}%</span>
                   {' · '}Vol: <span className="font-mono font-bold text-green-600">{result.minVariance.annVol.toFixed(2)}%</span>
-                  {' · '}Sharpe: <span className="font-mono font-bold">{result.minVariance.sharpe.toFixed(2)}</span>
+                  {' · '}Sharpe: <span className="font-mono font-bold">{result.minVariance.sharpe ? result.minVariance.sharpe.toFixed(2) : '-'}</span>
                 </div>
               </div>
               <div className="p-0">
