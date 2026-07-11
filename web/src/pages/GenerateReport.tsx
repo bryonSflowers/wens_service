@@ -33,7 +33,7 @@ export function GenerateReportPage() {
     standard: 'Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations. Use tables where helpful.',
     summary: 'Write an extremely concise summary under 4 paragraphs. Focus on the most important 3 numbers and what they mean. No tables. No fluff.',
     visual: 'Structure as a scannable visual report. DO NOT use code blocks or backticks anywhere. Use markdown headers (##, ###), bold (**text**), horizontal rules (---), bullet points, and proper markdown tables. Make sections clearly separated with headers and dividers. Emphasize key numbers with bold.',
-    quant: 'Include quantitative analysis: compute growth rates (MoM, YoY, CAGR), regression trends, probability distributions, and statistical tests. Use proper statistical language. Discuss confidence intervals, p-values, and significance levels. Incorporate the user\'s custom quant instructions where specified.',
+    quant: 'Focus on key growth rates (MoM, YoY, CAGR) and statistical significance. Keep it concise — 1-2 sentences per metric with the most important numbers.',
   }
 
   const handleGenerate = async (q?: string) => {

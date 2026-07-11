@@ -12,8 +12,8 @@ import db as db_service
 from tools import TOOL_DEFINITIONS, execute_tool
 
 logger = logging.getLogger(__name__)
-MAX_TOOL_CALLS = 20
-TOOL_TIMEOUT = 120
+MAX_TOOL_CALLS = 15
+TOOL_TIMEOUT = 90
 
 LLM_BACKEND = os.getenv("LLM_BACKEND", "claude")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
