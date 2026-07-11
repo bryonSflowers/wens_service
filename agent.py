@@ -443,25 +443,14 @@ async def generate_report(
     # Ordered fallback: selected provider first, then others
     providers_to_try = [provider] if provider else ["deepseek", "openai", "claude"]
 
-    # Ordered fallback: OpenCode first, then Claude
-    providers_map = [
-        ("opencode", OPENCODE_API_KEY, lambda: _generate_opencode(query, pool, cfg, user_id)),
-        ("claude", os.getenv("ANTHROPIC_API_KEY", ""), lambda: _generate_claude(query, pool, cfg, user_id)),
-    ]
-    # Move selected provider to front
-    if provider:
-        idx = next((i for i, (name, _, _) in enumerate(providers_map) if name == provider), None)
-        if idx and idx > 0:
-            providers_map.insert(0, providers_map.pop(idx))
-
-    for name, key, gen in providers_map:
-        if not key: continue
+    # Try OpenCode
+    if OPENCODE_API_KEY:
         try:
-            t, m = await gen()
+            t, m = await _generate_opencode(query, pool, cfg, user_id)
             if not _check_timeout(t):
                 return t, m
         except Exception as e:
-            logger.warning("%s failed: %s", name, e)
+            logger.warning("OpenCode failed: %s", e)
 
     # Return database report if all AI backends failed
     if offline_text:
