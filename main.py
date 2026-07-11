@@ -168,12 +168,12 @@ async def health():
         await pool.fetchval("SELECT 1")
     except Exception:
         db_ok = "disconnected"
-    api_key = os.getenv("ANTHROPIC_API_KEY", "")
     return HealthResponse(
         status="ok",
         version=settings.app_version,
         database=db_ok,
-        anthropic_key="set" if api_key else "missing",
+        anthropic_key="set" if os.getenv("ANTHROPIC_API_KEY") else "missing",
+        opencode_key="set" if os.getenv("OPENCODE_API_KEY") else "missing",
         llm_backend=os.getenv("LLM_BACKEND", "claude"),
     )
 
