@@ -12,33 +12,28 @@ import { COMPANY_COLORS } from '../components/ui/CompanySelector'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 
-interface OptimizerWeight {
-  ticker: string
-  weight: number
-}
-
 interface OptimizerPortfolio {
-  weights: OptimizerWeight[]
-  return: number
-  volatility: number
+  weights: Record<string, number>
+  annReturn: number
+  annVol: number
   sharpe: number
 }
 
 interface FrontierPoint {
-  return: number
-  volatility: number
+  ret: number
+  vol: number
 }
 
 interface AssetStat {
   ticker: string
-  return: number
-  volatility: number
+  annReturn: number
+  annVol: number
   sharpe: number
 }
 
 interface OptimizerResponse {
-  max_sharpe: OptimizerPortfolio
-  min_variance: OptimizerPortfolio
+  maxSharpe: OptimizerPortfolio
+  minVariance: OptimizerPortfolio
   frontier: FrontierPoint[]
   assets: AssetStat[]
 }
@@ -130,9 +125,9 @@ export function PortfolioOptimizerPage() {
                   Max Sharpe Portfolio
                 </h3>
                 <div className="text-xs text-[var(--text-secondary)]">
-                  Return: <span className="font-mono font-bold text-green-600">{(result.max_sharpe.return * 100).toFixed(2)}%</span>
-                  {' · '}Vol: <span className="font-mono font-bold">{(result.max_sharpe.volatility * 100).toFixed(2)}%</span>
-                  {' · '}Sharpe: <span className="font-mono font-bold">{result.max_sharpe.sharpe.toFixed(2)}</span>
+                  Return: <span className="font-mono font-bold text-green-600">{(result.maxSharpe.annReturn * 100).toFixed(2)}%</span>
+                  {' · '}Vol: <span className="font-mono font-bold">{(result.maxSharpe.annVol * 100).toFixed(2)}%</span>
+                  {' · '}Sharpe: <span className="font-mono font-bold">{result.maxSharpe.sharpe.toFixed(2)}</span>
                 </div>
               </div>
               <div className="p-0">
@@ -144,15 +139,15 @@ export function PortfolioOptimizerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.max_sharpe.weights.map((w) => (
-                      <tr key={w.ticker} className="border-b border-[var(--card-border)]">
+                    {Object.entries(result.maxSharpe.weights).map(([ticker, weight]) => (
+                      <tr key={ticker} className="border-b border-[var(--card-border)]">
                         <td className="px-4 py-3 font-medium">
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPANY_COLORS[w.ticker] || '#6b7280' }} />
-                            {w.ticker}
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPANY_COLORS[ticker] || '#6b7280' }} />
+                            {ticker}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">{(w.weight * 100).toFixed(1)}%</td>
+                        <td className="px-4 py-3 text-right font-mono">{(weight * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -167,9 +162,9 @@ export function PortfolioOptimizerPage() {
                   Minimum Variance Portfolio
                 </h3>
                 <div className="text-xs text-[var(--text-secondary)]">
-                  Return: <span className="font-mono font-bold">{(result.min_variance.return * 100).toFixed(2)}%</span>
-                  {' · '}Vol: <span className="font-mono font-bold text-green-600">{(result.min_variance.volatility * 100).toFixed(2)}%</span>
-                  {' · '}Sharpe: <span className="font-mono font-bold">{result.min_variance.sharpe.toFixed(2)}</span>
+                  Return: <span className="font-mono font-bold">{(result.minVariance.annReturn * 100).toFixed(2)}%</span>
+                  {' · '}Vol: <span className="font-mono font-bold text-green-600">{(result.minVariance.annVol * 100).toFixed(2)}%</span>
+                  {' · '}Sharpe: <span className="font-mono font-bold">{result.minVariance.sharpe.toFixed(2)}</span>
                 </div>
               </div>
               <div className="p-0">
@@ -181,15 +176,15 @@ export function PortfolioOptimizerPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.min_variance.weights.map((w) => (
-                      <tr key={w.ticker} className="border-b border-[var(--card-border)]">
+                    {Object.entries(result.minVariance.weights).map(([ticker, weight]) => (
+                      <tr key={ticker} className="border-b border-[var(--card-border)]">
                         <td className="px-4 py-3 font-medium">
                           <span className="inline-flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPANY_COLORS[w.ticker] || '#6b7280' }} />
-                            {w.ticker}
+                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COMPANY_COLORS[ticker] || '#6b7280' }} />
+                            {ticker}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono">{(w.weight * 100).toFixed(1)}%</td>
+                        <td className="px-4 py-3 text-right font-mono">{(weight * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -232,11 +227,11 @@ export function PortfolioOptimizerPage() {
                   }}
                 />
                 <Legend />
-                <Scatter name="Efficient Frontier" data={result.frontier.map((p) => ({ x: p.volatility, y: p.return }))}
+                <Scatter name="Efficient Frontier" data={result.frontier.map((p) => ({ x: p.vol, y: p.ret }))}
                   fill="#3b82f6" stroke="none" shape="circle" />
-                <Scatter name="Max Sharpe" data={[{ x: result.max_sharpe.volatility, y: result.max_sharpe.return, name: 'Max Sharpe' }]}
+                <Scatter name="Max Sharpe" data={[{ x: result.maxSharpe.annVol, y: result.maxSharpe.annReturn, name: 'Max Sharpe' }]}
                   fill="#22c55e" stroke="#fff" strokeWidth={2} shape="diamond" />
-                <Scatter name="Min Variance" data={[{ x: result.min_variance.volatility, y: result.min_variance.return, name: 'Min Variance' }]}
+                <Scatter name="Min Variance" data={[{ x: result.minVariance.annVol, y: result.minVariance.annReturn, name: 'Min Variance' }]}
                   fill="#f59e0b" stroke="#fff" strokeWidth={2} shape="triangle" />
               </ScatterChart>
             </ResponsiveContainer>
@@ -263,8 +258,8 @@ export function PortfolioOptimizerPage() {
                           {a.ticker}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-mono">{(a.return * 100).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-right font-mono">{(a.volatility * 100).toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-right font-mono">{(a.annReturn * 100).toFixed(2)}%</td>
+                      <td className="px-4 py-3 text-right font-mono">{(a.annVol * 100).toFixed(2)}%</td>
                       <td className="px-4 py-3 text-right font-mono">{a.sharpe.toFixed(2)}</td>
                     </tr>
                   ))}
