@@ -255,9 +255,13 @@ async def generate_report(
         logger.info("ANTHROPIC_API_KEY not set — using offline mode")
     else:
         text, meta = await _generate_claude(query, pool, cfg, user_id)
-        if "timed out" in text.lower() or "timeout" in text.lower():
+        timeout_patterns = ["timed out", "request timed out", "timeout error", "asyncio.timeouterror"]
+        auth_patterns = ["anthropic api key", "x-api-key", "authentication error", "invalid api key", "unauthorized"]
+        is_timeout = any(p in text.lower() for p in timeout_patterns)
+        is_auth = any(p in text.lower() for p in auth_patterns)
+        if is_timeout:
             logger.warning("Claude timed out — falling back to offline mode")
-        elif "api key" in text.lower() or "auth" in text.lower() or "unauthorized" in text.lower():
+        elif is_auth:
             logger.warning("Claude auth error — falling back to offline mode")
         else:
             return text, meta
