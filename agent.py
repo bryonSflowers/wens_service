@@ -251,6 +251,7 @@ async def generate_report(
 
     # Try Claude — only if API key is configured
     api_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
+    claude_failed = False
     if not api_key:
         logger.info("ANTHROPIC_API_KEY not set — using offline mode")
     else:
@@ -260,16 +261,21 @@ async def generate_report(
             is_timeout = any(p in text.lower() for p in timeout_patterns)
             if is_timeout:
                 logger.warning("Claude timed out — falling back to offline mode")
+                claude_failed = True
             else:
                 return text, meta
         except anthropic.AuthenticationError:
             logger.error("ANTHROPIC_API_KEY is invalid or revoked — falling back to offline mode")
+            claude_failed = True
+        except anthropic.RateLimitError:
+            logger.error("Claude rate limit hit — falling back to offline mode")
+            claude_failed = True
         except anthropic.APIConnectionError as e:
-            logger.error("Cannot reach Anthropic API: %s — falling back to offline mode", e)
-            raise
+            logger.error("Cannot reach Anthropic API: %s", e)
+            claude_failed = True
         except Exception as e:
-            logger.error("Unexpected error calling Claude: %s — re-raising", e)
-            raise
+            logger.error("Unexpected error calling Claude: %s", e)
+            claude_failed = True
 
     # Offline fallback — generate from database data directly
     try:
@@ -289,16 +295,26 @@ async def generate_report(
             if report_data.get("expenses") is not None:
                 metrics.append(f"**Expenses:** NT${report_data['expenses']:,.0f}M")
 
+        if not api_key:
+            reason = "no LLM backend API key is configured"
+            action = "Set the **ANTHROPIC_API_KEY** environment variable on Railway, or configure an Ollama backend via `LLM_BACKEND=ollama`."
+        elif claude_failed:
+            reason = "the AI backend (Claude) returned an error — check Railway logs for details"
+            action = "Your **ANTHROPIC_API_KEY** is set but Claude failed. This may be a temporary issue — try again in a few minutes, or check the API key is valid and has quota remaining."
+        else:
+            reason = "unknown reason"
+            action = ""
+
         text = f"""# Financial Report — {latest.get('ticker', 'N/A')}
 
 ## Overview
-This report was generated in **offline mode** because no LLM backend API key is configured.
+This report was generated in **offline mode** because {reason}.
 
 ## Latest Available Data
 {chr(10).join(metrics)}
 
 ## Action Required
-To enable AI-powered report generation, set the **ANTHROPIC_API_KEY** environment variable on Railway, or configure an Ollama backend via `LLM_BACKEND=ollama`.
+{action}
 
 ## Available Reports
 """ + "\n".join(f"- {r['year']}-{str(r['month']).zfill(2)} ({r.get('ticker','N/A')})" for r in reports[-10:])
