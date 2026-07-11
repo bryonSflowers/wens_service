@@ -50,7 +50,7 @@ export function GenerateReportPage() {
         const { data } = await client.post('/reports/generate-structured', { query: `Generate a structured financial report for ${ticker}. ${text}\n\nUse specific data from the database.` }, { signal: controller.signal })
         if (data.sections?.length) setStructuredSections(data.sections); else setError('Empty response')
       } else {
-        const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions: ${quantPrompt.trim()}` : ''
+        const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions (user-specified): ${quantPrompt.trim()}` : ''
         const { data } = await client.post('/reports/generate', { query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}` }, { signal: controller.signal })
         setReport(data.report || '')
         if (!data.report) setError('Empty response')
