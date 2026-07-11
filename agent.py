@@ -8,6 +8,7 @@ import anthropic
 import asyncpg
 from openai import AsyncOpenAI
 
+import db as db_service
 from tools import TOOL_DEFINITIONS, execute_tool
 
 logger = logging.getLogger(__name__)
@@ -263,13 +264,12 @@ async def generate_report(
 
     # Offline fallback — generate from database data directly
     try:
-        from datetime import date, timedelta
-        reports = await db.list_available_reports(pool)
+        reports = await db_service.list_available_reports(pool)
         if not reports:
             return ("No financial data available in the database.", {"model": "offline", "finish_reason": "no_data"})
 
         latest = reports[-1]
-        report_data = await db.get_monthly_report(pool, latest["year"], latest["month"])
+        report_data = await db_service.get_monthly_report(pool, latest["year"], latest["month"])
         metrics = []
         if report_data:
             metrics.append(f"**Period:** {report_data.get('year')}-{str(report_data.get('month')).zfill(2)}")
