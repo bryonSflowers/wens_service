@@ -12,8 +12,8 @@ import db as db_service
 from tools import TOOL_DEFINITIONS, execute_tool
 
 logger = logging.getLogger(__name__)
-MAX_TOOL_CALLS = 15
-TOOL_TIMEOUT = 90
+MAX_TOOL_CALLS = 5
+TOOL_TIMEOUT = 25
 
 LLM_BACKEND = os.getenv("LLM_BACKEND", "claude")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
@@ -249,79 +249,50 @@ async def generate_report(
         except Exception as e:
             return (f"⚠️ Ollama connection failed: {e}", {"model": "ollama", "finish_reason": "error"})
 
-    # Try Claude — only if API key is configured
-    api_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
-    claude_failed = False
-    if not api_key:
-        logger.info("ANTHROPIC_API_KEY not set — using offline mode")
-    else:
-        try:
-            text, meta = await _generate_claude(query, pool, cfg, user_id)
-            timeout_patterns = ["timed out", "request timed out", "timeout error", "asyncio.timeouterror"]
-            is_timeout = any(p in text.lower() for p in timeout_patterns)
-            if is_timeout:
-                logger.warning("Claude timed out — falling back to offline mode")
-                claude_failed = True
-            else:
-                return text, meta
-        except anthropic.AuthenticationError:
-            logger.error("ANTHROPIC_API_KEY is invalid or revoked — falling back to offline mode")
-            claude_failed = True
-        except anthropic.RateLimitError:
-            logger.error("Claude rate limit hit — falling back to offline mode")
-            claude_failed = True
-        except anthropic.APIConnectionError as e:
-            logger.error("Cannot reach Anthropic API: %s", e)
-            claude_failed = True
-        except Exception as e:
-            logger.error("Unexpected error calling Claude: %s", e)
-            claude_failed = True
-
-    # Offline fallback — generate from database data directly
+    # Build database report FIRST (always works, always fast)
+    offline_text = ""
     try:
         reports = await db_service.list_available_reports(pool)
-        if not reports:
-            return ("No financial data available in the database.", {"model": "offline", "finish_reason": "no_data"})
+        if reports:
+            latest = reports[-1]
+            report_data = await db_service.get_monthly_report(pool, latest["year"], latest["month"])
+            metrics_lines = []
+            if report_data:
+                metrics_lines.append(f"**Period:** {report_data.get('year')}-{str(report_data.get('month')).zfill(2)}")
+                if report_data.get("revenue") is not None:
+                    metrics_lines.append(f"**Revenue:** NT${report_data['revenue']:,.0f}M")
+                if report_data.get("net_income") is not None:
+                    metrics_lines.append(f"**Net Income:** NT${report_data['net_income']:,.0f}M")
+                if report_data.get("expenses") is not None:
+                    metrics_lines.append(f"**Expenses:** NT${report_data['expenses']:,.0f}M")
 
-        latest = reports[-1]
-        report_data = await db_service.get_monthly_report(pool, latest["year"], latest["month"])
-        metrics = []
-        if report_data:
-            metrics.append(f"**Period:** {report_data.get('year')}-{str(report_data.get('month')).zfill(2)}")
-            if report_data.get("revenue") is not None:
-                metrics.append(f"**Revenue:** NT${report_data['revenue']:,.0f}M")
-            if report_data.get("net_income") is not None:
-                metrics.append(f"**Net Income:** NT${report_data['net_income']:,.0f}M")
-            if report_data.get("expenses") is not None:
-                metrics.append(f"**Expenses:** NT${report_data['expenses']:,.0f}M")
+            report_list = "\n".join(f"- {r['year']}-{str(r['month']).zfill(2)} ({r.get('ticker','N/A')})" for r in reports[-10:])
+            offline_text = f"""# Financial Report — {latest.get('ticker', 'N/A')}
 
-        if not api_key:
-            reason = "no LLM backend API key is configured"
-            action = "Set the **ANTHROPIC_API_KEY** environment variable on Railway, or configure an Ollama backend via `LLM_BACKEND=ollama`."
-        elif claude_failed:
-            reason = "the AI backend (Claude) returned an error — check Railway logs for details"
-            action = "Your **ANTHROPIC_API_KEY** is set but Claude failed. This may be a temporary issue — try again in a few minutes, or check the API key is valid and has quota remaining."
-        else:
-            reason = "unknown reason"
-            action = ""
-
-        text = f"""# Financial Report — {latest.get('ticker', 'N/A')}
-
-## Overview
-This report was generated in **offline mode** because {reason}.
-
-## Latest Available Data
-{chr(10).join(metrics)}
-
-## Action Required
-{action}
+## Database Summary
+{chr(10).join(metrics_lines)}
 
 ## Available Reports
-""" + "\n".join(f"- {r['year']}-{str(r['month']).zfill(2)} ({r.get('ticker','N/A')})" for r in reports[-10:])
-
-        return (text, {"model": "offline", "finish_reason": "no_api_key"})
+{report_list}"""
     except Exception as e:
-        return (f"⚠️ Could not generate report: {e}", {"model": "none", "finish_reason": "error"})
+        logger.error("Offline report gen failed: %s", e)
+
+    # Try Claude — only if API key is configured, with a short timeout
+    api_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
+    if api_key:
+        try:
+            claude_text, meta = await _generate_claude(query, pool, cfg, user_id)
+            timeout_patterns = ["timed out", "request timed out", "timeout error"]
+            if not any(p in claude_text.lower() for p in timeout_patterns):
+                return claude_text, meta
+            logger.warning("Claude timed out — returning database report")
+        except Exception as e:
+            logger.warning("Claude failed (%s) — returning database report", e)
+
+    # Return database report if Claude didn't respond in time
+    if offline_text:
+        return (offline_text + "\n\n---\n*AI analysis unavailable — Claude did not respond within the timeout period. Try again later or check ANTHROPIC_API_KEY configuration.*", {"model": "offline", "finish_reason": "timeout"})
+    return ("No data available.", {"model": "none", "finish_reason": "no_data"})
 
 
 async def chat_completion(
