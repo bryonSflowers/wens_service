@@ -22,7 +22,7 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "") or os.getenv("DEEPSEEK_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
@@ -443,28 +443,25 @@ async def generate_report(
     # Ordered fallback: selected provider first, then others
     providers_to_try = [provider] if provider else ["deepseek", "openai", "claude"]
 
-    # Ordered fallback: selected provider first, then others
-    ordered = [provider] if provider else ["opencode", "claude", "deepseek", "openai"]
-    seen = set()
-    for prov in ordered + ["opencode", "deepseek", "openai", "claude"]:
-        if prov in seen: continue
-        seen.add(prov)
+    # Ordered fallback: OpenCode first, then Claude
+    providers_map = [
+        ("opencode", OPENCODE_API_KEY, lambda: _generate_opencode(query, pool, cfg, user_id)),
+        ("claude", os.getenv("ANTHROPIC_API_KEY", ""), lambda: _generate_claude(query, pool, cfg, user_id)),
+    ]
+    # Move selected provider to front
+    if provider:
+        idx = next((i for i, (name, _, _) in enumerate(providers_map) if name == provider), None)
+        if idx and idx > 0:
+            providers_map.insert(0, providers_map.pop(idx))
+
+    for name, key, gen in providers_map:
+        if not key: continue
         try:
-            akey = cfg.get("api_key") or ""
-            if prov == "deepseek" and (akey or DEEPSEEK_API_KEY):
-                t, m = await _generate_deepseek(query, pool, cfg, user_id)
-            elif prov == "opencode" and OPENCODE_API_KEY:
-                t, m = await _generate_opencode(query, pool, cfg, user_id)
-            elif prov == "openai" and OPENAI_API_KEY:
-                t, m = await _generate_openai(query, pool, cfg, user_id)
-            elif prov == "claude" and os.getenv("ANTHROPIC_API_KEY"):
-                t, m = await _generate_claude(query, pool, cfg, user_id)
-            else:
-                continue
+            t, m = await gen()
             if not _check_timeout(t):
                 return t, m
         except Exception as e:
-            logger.warning("%s failed: %s", prov, e)
+            logger.warning("%s failed: %s", name, e)
 
     # Return database report if all AI backends failed
     if offline_text:
