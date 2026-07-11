@@ -32,7 +32,7 @@ export function GenerateReportPage() {
   const FORMAT_PROMPTS: Record<string, string> = {
     standard: 'Structure with: Executive Summary, Key Metrics, Trend Analysis, Highlights & Concerns, Recommendations. Use tables where helpful.',
     summary: 'Write an extremely concise summary under 4 paragraphs. Focus on the most important 3 numbers and what they mean. No tables. No fluff.',
-    visual: 'Structure as a visual infographic-style report using ASCII-like sections. Use bullet points, indentation, and clear visual hierarchy. Include a text-based comparison table. Make it scannable.',
+    visual: 'Structure as a scannable visual report. DO NOT use code blocks or backticks anywhere. Use markdown headers (##, ###), bold (**text**), horizontal rules (---), bullet points, and proper markdown tables. Make sections clearly separated with headers and dividers. Emphasize key numbers with bold.',
     quant: 'Include quantitative analysis: compute growth rates (MoM, YoY, CAGR), regression trends, probability distributions, and statistical tests. Use proper statistical language. Discuss confidence intervals, p-values, and significance levels. Incorporate the user\'s custom quant instructions where specified.',
   }
 
