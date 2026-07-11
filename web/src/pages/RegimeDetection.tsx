@@ -11,43 +11,19 @@ import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { PageLoading } from '../components/ui/Loading'
 import { EmptyState } from '../components/ui/EmptyState'
 
-interface RegimeInfo {
-  state: number
-  label: string
-  count: number
-  mean_return: number
-  volatility: number
-  var_95: number
-  var_99: number
-}
-
-interface TimelinePoint {
-  date: string
-  state: number
-}
-
 interface RegimeResponse {
-  current_regime: {
-    state: number
-    label: string
-    volatility: number
-  }
-  regimes: RegimeInfo[]
-  timeline: TimelinePoint[]
-  transition_matrix: number[][]
-  current_var_95: number
-  overall_var_95: number
-  current_var_99: number
-  overall_var_99: number
+  ticker: string
+  nRegimes: number
+  currentRegime: { id: number; label: string; annualizedVol: number }
+  regimes: { state: number; vol: number; meanReturn: number; count: number; label: string }[]
+  varByRegime: { label: string; var95: number; var99: number; annualizedVol: number }[]
+  var95Overall: number
+  volOverall: number
+  transitionMatrix: number[][]
+  timeline: { date: string; state: number }[]
 }
 
 const REGIME_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#6366f1', '#ec4899']
-
-const REGIME_LABELS: Record<number, string> = {
-  0: 'Bull (Low Vol)',
-  1: 'Normal',
-  2: 'Bear (High Vol)',
-}
 
 export function RegimeDetectionPage() {
   const [ticker, setTicker] = useState('3045.TW')
@@ -70,7 +46,7 @@ export function RegimeDetectionPage() {
     setLoading(false)
   }
 
-  const regimeLabel = (state: number) => REGIME_LABELS[state] || `State ${state}`
+  const vaRForLabel = (label: string) => result?.varByRegime.find((v) => v.label === label)
 
   return (
     <div className="space-y-6">
@@ -104,14 +80,14 @@ export function RegimeDetectionPage() {
           <div className="card p-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold text-white shrink-0"
-                style={{ backgroundColor: REGIME_COLORS[result.current_regime.state] || '#6b7280' }}>
-                {result.current_regime.state + 1}
+                style={{ backgroundColor: REGIME_COLORS[result.currentRegime.id] || '#6b7280' }}>
+                {result.currentRegime.id + 1}
               </div>
               <div>
                 <p className="text-xs text-[var(--text-secondary)]">Current Regime</p>
-                <h2 className="text-xl font-bold text-[var(--text)]">{result.current_regime.label}</h2>
+                <h2 className="text-xl font-bold text-[var(--text)]">{result.currentRegime.label}</h2>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Volatility: <span className="font-mono font-bold">{(result.current_regime.volatility * 100).toFixed(2)}%</span>
+                  Volatility: <span className="font-mono font-bold">{result.currentRegime.annualizedVol.toFixed(2)}%</span>
                 </p>
               </div>
             </div>
@@ -132,21 +108,24 @@ export function RegimeDetectionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.regimes.map((r) => (
-                    <tr key={r.state} className="border-b border-[var(--card-border)]">
-                      <td className="px-4 py-3 font-medium">
-                        <span className="inline-flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: REGIME_COLORS[r.state] || '#6b7280' }} />
-                          {r.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono">{r.count}</td>
-                      <td className="px-4 py-3 text-right font-mono">{(r.mean_return * 100).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-right font-mono">{(r.volatility * 100).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-right font-mono">{(r.var_95 * 100).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-right font-mono">{(r.var_99 * 100).toFixed(2)}%</td>
-                    </tr>
-                  ))}
+                  {result.regimes.map((r) => {
+                    const va = vaRForLabel(r.label)
+                    return (
+                      <tr key={r.state} className="border-b border-[var(--card-border)]">
+                        <td className="px-4 py-3 font-medium">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: REGIME_COLORS[r.state] || '#6b7280' }} />
+                            {r.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono">{r.count}</td>
+                        <td className="px-4 py-3 text-right font-mono">{r.meanReturn.toFixed(2)}%</td>
+                        <td className="px-4 py-3 text-right font-mono">{r.vol.toFixed(2)}%</td>
+                        <td className="px-4 py-3 text-right font-mono">{va ? `${va.var95.toFixed(2)}%` : '-'}</td>
+                        <td className="px-4 py-3 text-right font-mono">{va ? `${va.var99.toFixed(2)}%` : '-'}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -161,18 +140,22 @@ export function RegimeDetectionPage() {
               <AreaChart data={result.timeline}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
                 <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} interval="preserveStartEnd" />
-                <YAxis domain={[-0.5, nStates - 0.5]} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
-                  ticks={Array.from({ length: nStates }, (_, i) => i)}
-                  tickFormatter={(v: number) => regimeLabel(v)} />
+                <YAxis domain={[-0.5, result.nRegimes - 0.5]} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
+                  ticks={Array.from({ length: result.nRegimes }, (_, i) => i)}
+                  tickFormatter={(v: number) => result.regimes.find((r) => r.state === v)?.label || `State ${v}`} />
                 <Tooltip
                   content={({ active, payload }: any) => {
                     if (!active || !payload?.[0]) return null
                     const d = payload[0].payload
+                    const color = REGIME_COLORS[d.state] || '#6b7280'
+                    const label = result.regimes.find((r) => r.state === d.state)?.label || `State ${d.state}`
                     return (
                       <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-xl p-3 text-xs">
                         <p className="font-medium text-[var(--text)]">{d.date}</p>
-                        <p>State: <span className="font-mono font-bold">{d.state}</span></p>
-                        <p>Regime: <span className="font-mono" style={{ color: REGIME_COLORS[d.state] }}>{regimeLabel(d.state)}</span></p>
+                        <p className="flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: color }} />
+                          <span className="font-mono font-bold" style={{ color }}>{label}</span>
+                        </p>
                       </div>
                     )
                   }}
@@ -183,7 +166,13 @@ export function RegimeDetectionPage() {
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <Area type="stepAfter" dataKey="state" stroke="#3b82f6" fill="url(#regimeFill)" strokeWidth={2} dot={false} />
+                <Area type="stepAfter" dataKey="state" stroke="#3b82f6" fill="url(#regimeFill)" strokeWidth={2} dot={false}
+                  activeDot={(props: any) => {
+                    if (!props) return null
+                    const { cx, cy, payload } = props
+                    const color = REGIME_COLORS[payload?.state] || '#6b7280'
+                    return <circle cx={cx} cy={cy} r={6} fill={color} stroke={color} strokeWidth={2} />
+                  }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -206,12 +195,12 @@ export function RegimeDetectionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.transition_matrix.map((row, si) => (
+                  {result.transitionMatrix.map((row, si) => (
                     <tr key={si} className="border-b border-[var(--card-border)]">
                       <td className="px-4 py-3 font-medium">
                         <span className="inline-flex items-center gap-1">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: REGIME_COLORS[si] }} />
-                          {result.regimes[si]?.label || `State ${si}`}
+                          {result.regimes.find((r) => r.state === si)?.label || `State ${si}`}
                         </span>
                       </td>
                       {row.map((prob, sj) => {
@@ -235,34 +224,43 @@ export function RegimeDetectionPage() {
               <Shield className="w-4 h-4" />
               Value at Risk: Current Regime vs Overall
             </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
-                <p className="text-xs text-[var(--text-secondary)] mb-2">Current Regime</p>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{(result.current_var_95 * 100).toFixed(2)}%</p>
-                    <p className="text-[10px] text-[var(--text-secondary)]">VaR 95%</p>
+            {(() => {
+              const currentVaR = vaRForLabel(result.currentRegime.label)
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
+                    <p className="text-xs text-[var(--text-secondary)] mb-2">Current Regime</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">
+                          {currentVaR ? `${currentVaR.var95.toFixed(2)}%` : '-'}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">VaR 95%</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold font-mono text-red-500">
+                          {currentVaR ? `${currentVaR.var99.toFixed(2)}%` : '-'}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">VaR 99%</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-lg font-bold font-mono text-red-500">{(result.current_var_99 * 100).toFixed(2)}%</p>
-                    <p className="text-[10px] text-[var(--text-secondary)]">VaR 99%</p>
+                  <div className="bg-slate-50 dark:bg-slate-800/20 rounded-lg p-4 text-center">
+                    <p className="text-xs text-[var(--text-secondary)] mb-2">Overall</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{result.var95Overall.toFixed(2)}%</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">VaR 95%</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{result.volOverall.toFixed(2)}%</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">Ann. Volatility</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-slate-50 dark:bg-slate-800/20 rounded-lg p-4 text-center">
-                <p className="text-xs text-[var(--text-secondary)] mb-2">Overall (All Regimes)</p>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-lg font-bold font-mono text-blue-600 dark:text-blue-400">{(result.overall_var_95 * 100).toFixed(2)}%</p>
-                    <p className="text-[10px] text-[var(--text-secondary)]">VaR 95%</p>
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold font-mono text-red-500">{(result.overall_var_99 * 100).toFixed(2)}%</p>
-                    <p className="text-[10px] text-[var(--text-secondary)]">VaR 99%</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+              )
+            })()}
           </div>
         </>
       )}
