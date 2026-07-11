@@ -3,6 +3,7 @@ import { FileText, Send, Loader2, Copy, Check, Sparkles, Database, Brain, PenLin
 import { useT } from '../i18n'
 import { TickerDropdown } from '../components/ui/TickerDropdown'
 import { ReportMarkdown } from '../components/ui/ReportMarkdown'
+import { StructuredReport } from '../components/ui/StructuredReport'
 import client from '../api/client'
 
 const SUGGESTIONS = [
@@ -17,7 +18,8 @@ export function GenerateReportPage() {
   const _ = useT()
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
-  const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant'>('standard')
+  const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant' | 'structured'>('standard')
+  const [structuredSections, setStructuredSections] = useState<any[] | null>(null)
   const [quantPrompt, setQuantPrompt] = useState('Use Monte Carlo simulation and Bayesian inference to analyze return distributions, tail risk, and probability of loss over multiple time horizons. Compute Value at Risk (VaR95/99), Conditional VaR, and stress test scenarios. Present results with confidence intervals and statistical significance levels.')
   const [report, setReport] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,18 +44,21 @@ export function GenerateReportPage() {
     setLoading(true)
     setError('')
     setReport('')
+    setStructuredSections(null)
     try {
-      const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions: ${quantPrompt.trim()}` : ''
-      const { data } = await client.post('/reports/generate', {
-        query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}`,
-      }, { signal: controller.signal })
-      setReport(data.report || '')
-      if (!data.report) setError('Empty response')
+      if (format === 'structured') {
+        const { data } = await client.post('/reports/generate-structured', { query: `Generate a structured financial report for ${ticker}. ${text}\n\nUse specific data from the database.` }, { signal: controller.signal })
+        if (data.sections?.length) setStructuredSections(data.sections); else setError('Empty response')
+      } else {
+        const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions: ${quantPrompt.trim()}` : ''
+        const { data } = await client.post('/reports/generate', { query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}` }, { signal: controller.signal })
+        setReport(data.report || '')
+        if (!data.report) setError('Empty response')
+      }
     } catch (err: any) {
       if (err.name === 'CanceledError' || err.name === 'AbortError') return
       const msg = err?.response?.data?.detail || err.message || 'Failed to generate'
-      const is502 = err?.response?.status === 502
-      setError(is502 ? 'LLM backend unavailable. Check that Ollama is running or ANTHROPIC_API_KEY is set in environment.' : msg)
+      setError(msg)
     } finally {
       setLoading(false)
       abortRef.current = null
@@ -128,7 +133,7 @@ export function GenerateReportPage() {
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Format:</span>
             <div className="flex gap-1">
-              {(['standard', 'summary', 'visual', 'quant'] as const).map((f) => (
+              {(['standard', 'summary', 'visual', 'quant', 'structured'] as const).map((f) => (
                 <button key={f} onClick={() => setFormat(f)} disabled={loading}
                   className={`text-[11px] px-3 py-1 rounded-full border transition-all capitalize ${
                     format === f
@@ -245,6 +250,7 @@ export function GenerateReportPage() {
                 </button>
               </div>
             )}
+            {structuredSections && <StructuredReport sections={structuredSections} />}
             {report && <ReportMarkdown content={report} />}
           </div>
         </div>
