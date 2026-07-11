@@ -26,3 +26,5 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     database: str
+    anthropic_key: str
+    llm_backend: str
