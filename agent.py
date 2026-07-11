@@ -445,12 +445,16 @@ async def generate_report(
 
     # Try OpenCode
     if OPENCODE_API_KEY:
+        logger.info("Attempting OpenCode API (key present: %s...)", OPENCODE_API_KEY[:8] if OPENCODE_API_KEY else "empty")
         try:
             t, m = await _generate_opencode(query, pool, cfg, user_id)
             if not _check_timeout(t):
                 return t, m
+            logger.warning("OpenCode returned timeout message in response")
         except Exception as e:
             logger.warning("OpenCode failed: %s", e)
+    else:
+        logger.warning("OPENCODE_API_KEY not set — skipping OpenCode")
 
     # Return database report if all AI backends failed
     if offline_text:
