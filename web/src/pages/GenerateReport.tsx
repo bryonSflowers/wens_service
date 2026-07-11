@@ -19,6 +19,7 @@ export function GenerateReportPage() {
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
   const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant' | 'structured'>('standard')
+  const [llmProvider, setLlmProvider] = useState<'deepseek' | 'claude'>('deepseek')
   const [structuredSections, setStructuredSections] = useState<any[] | null>(null)
   const [quantPrompt, setQuantPrompt] = useState('Use Monte Carlo simulation and Bayesian inference to analyze return distributions, tail risk, and probability of loss over multiple time horizons. Compute Value at Risk (VaR95/99), Conditional VaR, and stress test scenarios. Present results with confidence intervals and statistical significance levels.')
   const [report, setReport] = useState('')
@@ -51,7 +52,7 @@ export function GenerateReportPage() {
         if (data.sections?.length) setStructuredSections(data.sections); else setError('Empty response')
       } else {
         const quantExtra = format === 'quant' && quantPrompt.trim() ? `\n\nCustom quant instructions (user-specified): ${quantPrompt.trim()}` : ''
-        const { data } = await client.post('/reports/generate', { query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}` }, { signal: controller.signal })
+        const { data } = await client.post('/reports/generate', { query: `Generate a ${format} financial report for ${ticker}. ${text}\n\nUse specific data from the database. ${FORMAT_PROMPTS[format]}${quantExtra}`, provider: llmProvider }, { signal: controller.signal })
         setReport(data.report || '')
         if (!data.report) setError('Empty response')
       }
@@ -146,6 +147,26 @@ export function GenerateReportPage() {
               ))}
             </div>
           </div>
+
+          {/* LLM Provider selection */}
+          {format !== 'structured' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Engine:</span>
+              <div className="flex gap-1">
+                {(['deepseek', 'claude'] as const).map((p) => (
+                  <button key={p} onClick={() => setLlmProvider(p)} disabled={loading}
+                    className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                      llmProvider === p
+                        ? 'bg-purple-500 text-white border-purple-500'
+                        : 'border-[var(--card-border)] text-[var(--text-secondary)] hover:border-purple-300'
+                    }`}
+                  >
+                    {p === 'deepseek' ? 'DeepSeek' : 'Claude'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Custom Quant prompt — only shown for Quant format */}
           {format === 'quant' && (

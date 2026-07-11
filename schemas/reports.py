@@ -22,6 +22,7 @@ class ReportGenerateRequest(BaseModel):
     template_id: Optional[int] = None
     llm_config_id: Optional[int] = None
     stream: bool = False
+    provider: Optional[str] = None
 
 
 class ReportGenerateResponse(BaseModel):

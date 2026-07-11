@@ -76,6 +76,7 @@ async def generate_report(
             query=body.query,
             pool=pool,
             llm_config_id=body.llm_config_id,
+            provider_override=body.provider,
         )
     except Exception as exc:
         logger.error("Report generation failed: %s", exc, exc_info=True)

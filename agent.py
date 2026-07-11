@@ -15,10 +15,13 @@ logger = logging.getLogger(__name__)
 MAX_TOOL_CALLS = 5
 TOOL_TIMEOUT = 25
 
-LLM_BACKEND = os.getenv("LLM_BACKEND", "claude")
+LLM_BACKEND = os.getenv("LLM_BACKEND", "deepseek")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
 
 SYSTEM_PROMPT = """You are a senior financial analyst with access to a database of monthly financial reports and uploaded company documents.
 
@@ -223,31 +226,72 @@ async def _generate_ollama(
     return "Report generation ended unexpectedly.", _metadata(model=model)
 
 
+async def _generate_deepseek(
+    query: str,
+    pool: asyncpg.Pool,
+    llm_config: Optional[dict] = None,
+    user_id: Optional[int] = None,
+) -> tuple[str, dict]:
+    """Generate report using DeepSeek (OpenAI-compatible API)."""
+    cfg = llm_config or {}
+    client = AsyncOpenAI(
+        base_url=cfg.get("base_url", DEEPSEEK_BASE_URL),
+        api_key=cfg.get("api_key") or DEEPSEEK_API_KEY,
+    )
+    model = cfg.get("model", DEEPSEEK_MODEL)
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": query},
+    ]
+    tools = _to_openai_tools(TOOL_DEFINITIONS)
+
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(model=model, messages=messages, tools=tools),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("DeepSeek request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
+
+        choice = response.choices[0]
+        msg = choice.message
+
+        assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            assistant_turn["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                for tc in msg.tool_calls
+            ]
+        messages.append(assistant_turn)
+
+        if choice.finish_reason == "stop" or not msg.tool_calls:
+            return msg.content or "", _metadata(
+                model=model, tokens_used=response.usage.total_tokens if response.usage else None,
+                finish_reason=choice.finish_reason,
+            )
+
+        for tc in msg.tool_calls:
+            result = await execute_tool(tc.function.name, json.loads(tc.function.arguments), pool, user_id)
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+    return "Report generation ended unexpectedly.", _metadata(model=model)
+
+
 async def generate_report(
     query: str,
     pool: asyncpg.Pool,
     llm_config_id: Optional[int] = None,
     user_id: Optional[int] = None,
+    provider_override: Optional[str] = None,
 ) -> tuple[str, dict]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
-    provider = cfg["provider"]
-
-    # Try Ollama
-    if provider == "ollama":
-        base = cfg.get("base_url", OLLAMA_BASE_URL)
-        if "localhost" in base and "11434" in base:
-            return (
-                "⚠️ **Ollama not available in this environment.**\n\n"
-                "The Ollama service is configured to run on localhost:11434, which is not accessible "
-                "from this deployment. Set `ANTHROPIC_API_KEY` to use Claude, or change "
-                "`OLLAMA_BASE_URL` to a remote Ollama instance.\n\n"
-                "Falling back to database-generated report.\n\n",
-                {"model": "none", "finish_reason": "config_error"},
-            )
-        try:
-            return await _generate_ollama(query, pool, cfg, user_id)
-        except Exception as e:
-            return (f"⚠️ Ollama connection failed: {e}", {"model": "ollama", "finish_reason": "error"})
+    provider = provider_override or cfg["provider"]
 
     # Build database report FIRST (always works, always fast)
     offline_text = ""
@@ -277,21 +321,42 @@ async def generate_report(
     except Exception as e:
         logger.error("Offline report gen failed: %s", e)
 
-    # Try Claude — only if API key is configured, with a short timeout
-    api_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
-    if api_key:
-        try:
-            claude_text, meta = await _generate_claude(query, pool, cfg, user_id)
-            timeout_patterns = ["timed out", "request timed out", "timeout error"]
-            if not any(p in claude_text.lower() for p in timeout_patterns):
-                return claude_text, meta
-            logger.warning("Claude timed out — returning database report")
-        except Exception as e:
-            logger.warning("Claude failed (%s) — returning database report", e)
+    def _check_timeout(t: str) -> bool:
+        return any(p in t.lower() for p in ["timed out", "request timed out", "timeout error"])
 
-    # Return database report if Claude didn't respond in time
+    # Try Ollama
+    if provider == "ollama":
+        base = cfg.get("base_url", OLLAMA_BASE_URL)
+        if not ("localhost" in base and "11434" in base):
+            try:
+                t, m = await _generate_ollama(query, pool, cfg, user_id)
+                if not _check_timeout(t): return t, m
+            except Exception as e:
+                logger.warning("Ollama failed: %s", e)
+
+    # Try DeepSeek
+    deepseek_key = cfg.get("api_key") or DEEPSEEK_API_KEY
+    if deepseek_key and provider in ("deepseek", None, "claude"):
+        try:
+            t, m = await _generate_deepseek(query, pool, cfg, user_id)
+            if not _check_timeout(t): return t, m
+            logger.warning("DeepSeek timed out")
+        except Exception as e:
+            logger.warning("DeepSeek failed: %s", e)
+
+    # Try Claude
+    claude_key = os.getenv("ANTHROPIC_API_KEY", "") or ""
+    if claude_key and provider in ("claude", None):
+        try:
+            t, m = await _generate_claude(query, pool, cfg, user_id)
+            if not _check_timeout(t): return t, m
+            logger.warning("Claude timed out")
+        except Exception as e:
+            logger.warning("Claude failed: %s", e)
+
+    # Return database report if all AI backends failed
     if offline_text:
-        return (offline_text + "\n\n---\n*AI analysis unavailable — Claude did not respond within the timeout period. Try again later or check ANTHROPIC_API_KEY configuration.*", {"model": "offline", "finish_reason": "timeout"})
+        return (offline_text + "\n\n---\n*AI analysis unavailable. No LLM responded in time.*", {"model": "offline", "finish_reason": "timeout"})
     return ("No data available.", {"model": "none", "finish_reason": "no_data"})
 
 
