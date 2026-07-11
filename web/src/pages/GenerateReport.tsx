@@ -19,7 +19,7 @@ export function GenerateReportPage() {
   const [query, setQuery] = useState('')
   const [ticker, setTicker] = useState('3045.TW')
   const [format, setFormat] = useState<'standard' | 'summary' | 'visual' | 'quant' | 'structured'>('standard')
-  const [llmProvider, setLlmProvider] = useState<'deepseek' | 'claude' | 'openai'>('deepseek')
+  const [llmProvider, setLlmProvider] = useState<'deepseek' | 'claude' | 'openai' | 'opencode'>('opencode')
   const [structuredSections, setStructuredSections] = useState<any[] | null>(null)
   const [quantPrompt, setQuantPrompt] = useState('Use Monte Carlo simulation and Bayesian inference to analyze return distributions, tail risk, and probability of loss over multiple time horizons. Compute Value at Risk (VaR95/99), Conditional VaR, and stress test scenarios. Present results with confidence intervals and statistical significance levels.')
   const [report, setReport] = useState('')
@@ -153,7 +153,7 @@ export function GenerateReportPage() {
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Engine:</span>
               <div className="flex gap-1">
-                {(['deepseek', 'openai', 'claude'] as const).map((p) => (
+                {(['opencode', 'deepseek', 'openai', 'claude'] as const).map((p) => (
                   <button key={p} onClick={() => setLlmProvider(p)} disabled={loading}
                     className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
                       llmProvider === p
@@ -161,7 +161,7 @@ export function GenerateReportPage() {
                         : 'border-[var(--card-border)] text-[var(--text-secondary)] hover:border-purple-300'
                     }`}
                   >
-                    {p === 'deepseek' ? 'DeepSeek' : p === 'openai' ? 'OpenAI' : 'Claude'}
+                    {p === 'opencode' ? 'OpenCode' : p === 'deepseek' ? 'DeepSeek' : p === 'openai' ? 'OpenAI' : 'Claude'}
                   </button>
                 ))}
               </div>

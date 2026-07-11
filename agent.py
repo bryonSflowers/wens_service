@@ -25,6 +25,9 @@ DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "") or os.getenv("DEEPSEEK_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "")
+OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "deepseek-v4-flash")
+OPENCODE_BASE_URL = os.getenv("OPENCODE_BASE_URL", "https://api.opencode.ai/v1")
 
 SYSTEM_PROMPT = """You are a senior financial analyst with access to a database of monthly financial reports and uploaded company documents.
 
@@ -336,6 +339,56 @@ async def _generate_openai(
     return "Report generation ended unexpectedly.", _metadata(model=model)
 
 
+async def _generate_opencode(
+    query: str,
+    pool: asyncpg.Pool,
+    llm_config: Optional[dict] = None,
+    user_id: Optional[int] = None,
+) -> tuple[str, dict]:
+    cfg = llm_config or {}
+    client = AsyncOpenAI(
+        base_url=cfg.get("base_url", OPENCODE_BASE_URL),
+        api_key=cfg.get("api_key") or OPENCODE_API_KEY,
+    )
+    model = cfg.get("model", OPENCODE_MODEL)
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": query},
+    ]
+    tools = _to_openai_tools(TOOL_DEFINITIONS)
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(model=model, messages=messages, tools=tools),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("OpenCode request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
+        choice = response.choices[0]
+        msg = choice.message
+        assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            assistant_turn["tool_calls"] = [
+                {"id": tc.id, "type": "function",
+                 "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                for tc in msg.tool_calls
+            ]
+        messages.append(assistant_turn)
+        if choice.finish_reason == "stop" or not msg.tool_calls:
+            return msg.content or "", _metadata(
+                model=model, tokens_used=response.usage.total_tokens if response.usage else None,
+                finish_reason=choice.finish_reason,
+            )
+        for tc in msg.tool_calls:
+            result = await execute_tool(tc.function.name, json.loads(tc.function.arguments), pool, user_id)
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+    return "Report generation ended unexpectedly.", _metadata(model=model)
+
+
 async def generate_report(
     query: str,
     pool: asyncpg.Pool,
@@ -390,19 +443,21 @@ async def generate_report(
     # Ordered fallback: selected provider first, then others
     providers_to_try = [provider] if provider else ["deepseek", "openai", "claude"]
 
-    for prov in providers_to_try:
+    # Ordered fallback: selected provider first, then others
+    ordered = [provider] if provider else ["opencode", "deepseek", "openai", "claude"]
+    seen = set()
+    for prov in ordered + ["opencode", "deepseek", "openai", "claude"]:
+        if prov in seen: continue
+        seen.add(prov)
         try:
-            if prov == "deepseek":
-                k = cfg.get("api_key") or DEEPSEEK_API_KEY
-                if not k: continue
+            akey = cfg.get("api_key") or ""
+            if prov == "deepseek" and (akey or DEEPSEEK_API_KEY):
                 t, m = await _generate_deepseek(query, pool, cfg, user_id)
-            elif prov == "openai":
-                k = OPENAI_API_KEY
-                if not k: continue
+            elif prov == "opencode" and OPENCODE_API_KEY:
+                t, m = await _generate_opencode(query, pool, cfg, user_id)
+            elif prov == "openai" and OPENAI_API_KEY:
                 t, m = await _generate_openai(query, pool, cfg, user_id)
-            elif prov == "claude":
-                k = os.getenv("ANTHROPIC_API_KEY", "")
-                if not k: continue
+            elif prov == "claude" and os.getenv("ANTHROPIC_API_KEY"):
                 t, m = await _generate_claude(query, pool, cfg, user_id)
             else:
                 continue
