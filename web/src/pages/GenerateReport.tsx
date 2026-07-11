@@ -149,18 +149,25 @@ export function GenerateReportPage() {
 
           {/* Custom Quant prompt — only shown for Quant format */}
           {format === 'quant' && (
-            <div>
-              <label className="label text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-                Custom Quant Instructions <span className="text-[var(--text-tertiary)] font-normal normal-case">(optional — specify your preferred statistical methods)</span>
-              </label>
-              <textarea
-                className="input resize-none"
-                rows={2}
-                placeholder="e.g. Use Bayesian inference, focus on tail risk, compute expected shortfall..."
-                value={quantPrompt}
-                onChange={(e) => setQuantPrompt(e.target.value)}
-                disabled={loading}
-              />
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="label text-[10px] uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+                  Custom Quant Instructions <span className="text-[var(--text-tertiary)] font-normal normal-case">(specify your preferred statistical methods)</span>
+                </label>
+                <textarea
+                  className="input resize-none"
+                  rows={2}
+                  placeholder="e.g. Use GARCH for volatility, compute expected shortfall at 99%..."
+                  value={quantPrompt}
+                  onChange={(e) => setQuantPrompt(e.target.value)}
+                  disabled={loading}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (query.trim()) handleGenerate() } }}
+                />
+              </div>
+              <button className="btn-primary h-[38px] shrink-0" onClick={() => query.trim() && handleGenerate()} disabled={loading || !query.trim()}>
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Generate Quant
+              </button>
             </div>
           )}
 
