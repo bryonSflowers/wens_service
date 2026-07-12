@@ -45,3 +45,11 @@ async def get_generated_report(report_id: int):
         "tokens_used": row["tokens_used"],
         "created_at": row["created_at"],
     }
+
+
+@router.delete("/{report_id}", status_code=204)
+async def delete_generated_report(report_id: int):
+    pool = await db_service.get_pool()
+    r = await pool.execute("DELETE FROM generated_reports WHERE id = $1", report_id)
+    if r == "DELETE 0":
+        raise HTTPException(404, "Generated report not found")

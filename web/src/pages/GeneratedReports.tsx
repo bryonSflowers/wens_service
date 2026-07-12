@@ -6,7 +6,7 @@ import { Modal } from '../components/ui/Modal'
 import { PageLoading } from '../components/ui/Loading'
 import type { GeneratedReport } from '../types'
 import { useT } from '../i18n'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Trash2 } from 'lucide-react'
 import { ReportMarkdown } from '../components/ui/ReportMarkdown'
 
 export function GeneratedReportsPage() {
@@ -17,6 +17,7 @@ export function GeneratedReportsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<GeneratedReport | null>(null)
+  const [deleting, setDeleting] = useState<number | null>(null)
 
   const fetch = async (p: number) => {
     setLoading(true)
@@ -32,6 +33,16 @@ export function GeneratedReportsPage() {
   }
 
   useEffect(() => { fetch(page) }, [page])
+
+  const handleDelete = async (id: number) => {
+    setDeleting(id)
+    try {
+      await generatedReportsApi.delete(id)
+      if (selected?.id === id) setSelected(null)
+      fetch(page)
+    } catch {}
+    setDeleting(null)
+  }
 
   const columns: Column<GeneratedReport>[] = [
     { key: 'id', header: 'ID', render: (r: GeneratedReport) => <span className="font-mono text-xs">#{r.id}</span> },
@@ -66,7 +77,20 @@ export function GeneratedReportsPage() {
         </div>
       </div>
 
-      <Modal open={!!selected} onClose={() => setSelected(null)} title={_('generated.title')} size="xl">
+      <Modal open={!!selected} onClose={() => setSelected(null)}
+        title={
+          <div className="flex items-center gap-3">
+            <span>{_('generated.title')}</span>
+            {selected && (
+              <button onClick={() => handleDelete(selected.id)} disabled={deleting === selected.id}
+                className="text-[11px] flex items-center gap-1 px-2 py-1 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting === selected.id ? 'Deleting...' : 'Delete'}
+              </button>
+            )}
+          </div>
+        }
+        size="xl">
         {selected && (
           <div className="space-y-4">
             <div className="flex gap-4 text-sm text-gray-500">

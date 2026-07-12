@@ -130,6 +130,8 @@ export const generatedReportsApi = {
     client.get('/generated-reports', { params }),
   get: (id: number) =>
     client.get(`/generated-reports/${id}`),
+  delete: (id: number) =>
+    client.delete(`/generated-reports/${id}`),
 }
 
 // ===== Export API =====

@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 interface ModalProps {
   open: boolean
   onClose: () => void
-  title: string
+  title: string | ReactNode
   children: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
 }
