@@ -53,6 +53,16 @@ export function GeneratedReportsPage() {
     { key: 'tokens_used', header: _('generated.tokens'), render: (r: GeneratedReport) => r.tokens_used ?? '-' },
     { key: 'created_at', header: 'Date', render: (r: GeneratedReport) => new Date(r.created_at).toLocaleDateString() },
     { key: 'id2', header: '', render: () => <ExternalLink className="w-4 h-4 text-gray-400" />, className: 'w-10' },
+    { key: 'delete', header: '', render: (r: GeneratedReport) => (
+      <button
+        onClick={(e) => { e.stopPropagation(); handleDelete(r.id) }}
+        disabled={deleting === r.id}
+        className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors"
+        title="Delete"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    ), className: 'w-10' },
   ]
 
   if (loading && !data.length) return <PageLoading />
