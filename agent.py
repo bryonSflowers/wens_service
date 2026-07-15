@@ -9,13 +9,15 @@ import asyncpg
 from openai import AsyncOpenAI
 
 import db as db_service
+from encryption import decrypt
 from tools import TOOL_DEFINITIONS, execute_tool
 
 logger = logging.getLogger(__name__)
 MAX_TOOL_CALLS = 8
 TOOL_TIMEOUT = 55
 
-LLM_BACKEND = os.getenv("LLM_BACKEND", "deepseek")
+LLM_BACKEND = os.getenv("LLM_BACKEND", "opencode")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
@@ -83,18 +85,40 @@ async def _resolve_llm_config(
             llm_config_id,
         )
         if row:
+            raw_key = row["api_key_encrypted"]
             return {
                 "provider": row["provider"],
                 "model": row["model"],
                 "base_url": row["base_url"],
-                "api_key": row["api_key_encrypted"],
+                "api_key": decrypt(raw_key) if raw_key else None,
                 "parameters": row["parameters"],
             }
+
+    provider = LLM_BACKEND
+    api_key_map = {
+        "claude": ANTHROPIC_API_KEY,
+        "deepseek": DEEPSEEK_API_KEY,
+        "openai": OPENAI_API_KEY,
+        "opencode": OPENCODE_API_KEY,
+    }
+    base_url_map = {
+        "ollama": OLLAMA_BASE_URL,
+        "deepseek": DEEPSEEK_BASE_URL,
+        "openai": OPENAI_BASE_URL,
+        "opencode": OPENCODE_BASE_URL,
+    }
+    model_map = {
+        "ollama": OLLAMA_MODEL,
+        "claude": CLAUDE_MODEL,
+        "deepseek": DEEPSEEK_MODEL,
+        "openai": OPENAI_MODEL,
+        "opencode": OPENCODE_MODEL,
+    }
     return {
-        "provider": LLM_BACKEND,
-        "model": OLLAMA_MODEL if LLM_BACKEND == "ollama" else CLAUDE_MODEL,
-        "base_url": OLLAMA_BASE_URL if LLM_BACKEND == "ollama" else None,
-        "api_key": None,
+        "provider": provider,
+        "model": model_map.get(provider, CLAUDE_MODEL),
+        "base_url": base_url_map.get(provider),
+        "api_key": api_key_map.get(provider) or "",
         "parameters": None,
     }
 
@@ -105,9 +129,10 @@ async def _generate_claude(
     llm_config: Optional[dict] = None,
     user_id: Optional[int] = None,
 ) -> tuple[str, dict]:
-    client = anthropic.AsyncAnthropic()
+    cfg = llm_config or {}
+    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
     messages: list[dict] = [{"role": "user", "content": query}]
-    model = (llm_config or {}).get("model", CLAUDE_MODEL)
+    model = cfg.get("model", CLAUDE_MODEL)
 
     calls = 0
     while calls < MAX_TOOL_CALLS:
@@ -165,7 +190,7 @@ async def _generate_ollama(
     cfg = llm_config or {}
     client = AsyncOpenAI(
         base_url=cfg.get("base_url", OLLAMA_BASE_URL),
-        api_key=cfg.get("api_key", "ollama"),
+        api_key="ollama",
     )
     model = cfg.get("model", OLLAMA_MODEL)
     messages: list[dict] = [
@@ -242,7 +267,7 @@ async def _generate_deepseek(
     cfg = llm_config or {}
     client = AsyncOpenAI(
         base_url=cfg.get("base_url", DEEPSEEK_BASE_URL),
-        api_key=cfg.get("api_key") or DEEPSEEK_API_KEY,
+        api_key=DEEPSEEK_API_KEY or "deepseek",
     )
     model = cfg.get("model", DEEPSEEK_MODEL)
     messages: list[dict] = [
@@ -298,7 +323,7 @@ async def _generate_openai(
     cfg = llm_config or {}
     client = AsyncOpenAI(
         base_url=cfg.get("base_url", OPENAI_BASE_URL),
-        api_key=cfg.get("api_key") or OPENAI_API_KEY,
+        api_key=OPENAI_API_KEY or "",
     )
     model = cfg.get("model", OPENAI_MODEL)
     messages: list[dict] = [
@@ -348,7 +373,7 @@ async def _generate_opencode(
     cfg = llm_config or {}
     client = AsyncOpenAI(
         base_url=cfg.get("base_url", OPENCODE_BASE_URL),
-        api_key=cfg.get("api_key") or OPENCODE_API_KEY,
+        api_key=OPENCODE_API_KEY or "opencode",
     )
     model = cfg.get("model", OPENCODE_MODEL)
     messages: list[dict] = [
@@ -427,39 +452,128 @@ async def generate_report(
     except Exception as e:
         logger.error("Offline report gen failed: %s", e)
 
+    GENERATORS: dict[str, Any] = {
+        "ollama": _generate_ollama,
+        "deepseek": _generate_deepseek,
+        "openai": _generate_openai,
+        "claude": _generate_claude,
+        "opencode": _generate_opencode,
+    }
+
+    # Ordered list: primary provider first, then fallbacks
+    providers_to_try: list[str] = []
+    if provider in GENERATORS:
+        providers_to_try.append(provider)
+    for p in ("deepseek", "openai", "claude"):
+        if p != provider and p not in providers_to_try:
+            providers_to_try.append(p)
+    # Always try opencode last if key is available
+    if OPENCODE_API_KEY and "opencode" not in providers_to_try:
+        providers_to_try.append("opencode")
+
     def _check_timeout(t: str) -> bool:
         return any(p in t.lower() for p in ["timed out", "request timed out", "timeout error"])
 
-    # Try Ollama
-    if provider == "ollama":
-        base = cfg.get("base_url", OLLAMA_BASE_URL)
-        if not ("localhost" in base and "11434" in base):
-            try:
-                t, m = await _generate_ollama(query, pool, cfg, user_id)
-                if not _check_timeout(t): return t, m
-            except Exception as e:
-                logger.warning("Ollama failed: %s", e)
-
-    # Ordered fallback: selected provider first, then others
-    providers_to_try = [provider] if provider else ["deepseek", "openai", "claude"]
-
-    # Try OpenCode
-    if OPENCODE_API_KEY:
-        logger.info("Attempting OpenCode API (key present: %s...)", OPENCODE_API_KEY[:8] if OPENCODE_API_KEY else "empty")
+    for p in providers_to_try:
+        gen = GENERATORS.get(p)
+        if not gen:
+            continue
+        # Skip local-only Ollama
+        if p == "ollama":
+            base = cfg.get("base_url", OLLAMA_BASE_URL)
+            if "localhost" in base and "11434" in base:
+                logger.info("Skipping local Ollama — not reachable from deployed environment")
+                continue
+        logger.info("Attempting %s...", p)
         try:
-            t, m = await _generate_opencode(query, pool, cfg, user_id)
+            t, m = await gen(query, pool, cfg, user_id)
             if not _check_timeout(t):
                 return t, m
-            logger.warning("OpenCode returned timeout message in response")
+            logger.warning("%s returned timeout message", p)
         except Exception as e:
-            logger.warning("OpenCode failed: %s", e)
-    else:
-        logger.warning("OPENCODE_API_KEY not set — skipping OpenCode")
+            logger.warning("%s failed: %s", p, e)
 
     # Return database report if all AI backends failed
     if offline_text:
         return (offline_text + "\n\n---\n*AI analysis unavailable. No LLM responded in time.*", {"model": "offline", "finish_reason": "timeout"})
     return ("No data available.", {"model": "none", "finish_reason": "no_data"})
+
+
+async def _chat_completion_openai(
+    client: AsyncOpenAI,
+    model: str,
+    messages: list[dict],
+    max_tokens: int,
+    temperature: Optional[float],
+    pool: asyncpg.Pool,
+    user_id: Optional[int],
+) -> tuple[str, dict]:
+    full_messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        *messages,
+    ]
+    tools = _to_openai_tools(TOOL_DEFINITIONS)
+    kwargs: dict = {
+        "model": model,
+        "messages": full_messages,
+        "max_tokens": max_tokens,
+        "tools": tools,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+
+    calls = 0
+    while calls < MAX_TOOL_CALLS:
+        calls += 1
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(**kwargs),
+                timeout=TOOL_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
+            return "The request timed out. Please try again.", _metadata(model=model)
+        choice = response.choices[0]
+        msg = choice.message
+
+        assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
+        if msg.tool_calls:
+            assistant_turn["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in msg.tool_calls
+            ]
+        full_messages.append(assistant_turn)
+
+        if choice.finish_reason == "stop" or not msg.tool_calls:
+            return msg.content or "", _metadata(
+                id=response.id,
+                model=model,
+                finish_reason=choice.finish_reason,
+                tokens_used=response.usage.total_tokens if response.usage else None,
+            )
+
+        for tc in msg.tool_calls:
+            result = await execute_tool(
+                tc.function.name,
+                json.loads(tc.function.arguments),
+                pool,
+                user_id,
+            )
+            full_messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": result,
+            })
+
+    logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
+    return "Chat ended unexpectedly (too many tool calls).", _metadata(model=model)
 
 
 async def chat_completion(
@@ -472,82 +586,17 @@ async def chat_completion(
 ) -> tuple[str, dict]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
+    model = cfg.get("model", "")
+    base_url = cfg.get("base_url") or ""
+    api_key = cfg.get("api_key") or ""
 
-    if provider == "ollama":
-        client = AsyncOpenAI(
-            base_url=cfg.get("base_url", OLLAMA_BASE_URL),
-            api_key=cfg.get("api_key", "ollama"),
+    if provider in ("ollama", "deepseek", "openai", "opencode"):
+        client = AsyncOpenAI(base_url=base_url, api_key=api_key)
+        return await _chat_completion_openai(
+            client, model, messages, max_tokens, temperature, pool, user_id,
         )
-        model = cfg.get("model", OLLAMA_MODEL)
-        full_messages: list[dict] = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            *messages,
-        ]
-        tools = _to_openai_tools(TOOL_DEFINITIONS)
-        kwargs: dict = {
-            "model": model,
-            "messages": full_messages,
-            "max_tokens": max_tokens,
-            "tools": tools,
-        }
-        if temperature is not None:
-            kwargs["temperature"] = temperature
 
-        calls = 0
-        while calls < MAX_TOOL_CALLS:
-            calls += 1
-            try:
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(**kwargs),
-                    timeout=TOOL_TIMEOUT,
-                )
-            except asyncio.TimeoutError:
-                logger.error("LLM request timed out after %ds", TOOL_TIMEOUT)
-                return "The request timed out. Please try again.", _metadata(model=model)
-            choice = response.choices[0]
-            msg = choice.message
-
-            assistant_turn: dict = {"role": "assistant", "content": msg.content or ""}
-            if msg.tool_calls:
-                assistant_turn["tool_calls"] = [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                    for tc in msg.tool_calls
-                ]
-            full_messages.append(assistant_turn)
-
-            if choice.finish_reason == "stop" or not msg.tool_calls:
-                return msg.content or "", _metadata(
-                    id=response.id,
-                    model=model,
-                    finish_reason=choice.finish_reason,
-                    tokens_used=response.usage.total_tokens if response.usage else None,
-                )
-
-            for tc in msg.tool_calls:
-                result = await execute_tool(
-                    tc.function.name,
-                    json.loads(tc.function.arguments),
-                    pool,
-                    user_id,
-                )
-                full_messages.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": result,
-                })
-
-        logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
-        return "Chat ended unexpectedly (too many tool calls).", _metadata(model=model)
-
-    client = anthropic.AsyncAnthropic()
-    model = cfg.get("model", CLAUDE_MODEL)
+    client = anthropic.AsyncAnthropic(api_key=api_key)
     full_messages = list(messages)
     kwargs = {
         "model": model,
@@ -674,7 +723,8 @@ async def _run_tool_loop(
         logger.warning("Tool loop hit max iterations (%d)", MAX_TOOL_CALLS)
         return "Chat ended unexpectedly (too many tool calls)."
 
-    client = anthropic.AsyncAnthropic()
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    client = anthropic.AsyncAnthropic(api_key=api_key)
     full_messages = list(messages)
     kwargs = {
         "model": model,
@@ -735,13 +785,12 @@ async def chat_completion_stream(
 ) -> AsyncGenerator[dict, None]:
     cfg = await _resolve_llm_config(pool, llm_config_id)
     provider = cfg["provider"]
-    model = cfg.get("model", OLLAMA_MODEL if provider == "ollama" else CLAUDE_MODEL)
+    model = cfg.get("model", "")
+    base_url = cfg.get("base_url") or ""
+    api_key = cfg.get("api_key") or ""
 
-    if provider == "ollama":
-        client = AsyncOpenAI(
-            base_url=cfg.get("base_url", OLLAMA_BASE_URL),
-            api_key=cfg.get("api_key", "ollama"),
-        )
+    if provider in ("ollama", "deepseek", "openai", "opencode"):
+        client = AsyncOpenAI(base_url=base_url, api_key=api_key)
         full_messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             *messages,
@@ -769,7 +818,7 @@ async def chat_completion_stream(
             yield {"type": "content", "text": f"\n\nError: {e}"}
         return
 
-    client = anthropic.AsyncAnthropic()
+    client = anthropic.AsyncAnthropic(api_key=api_key)
     try:
         async with client.messages.stream(
             model=model,

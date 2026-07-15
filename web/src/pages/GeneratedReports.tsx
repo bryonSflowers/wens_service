@@ -18,8 +18,11 @@ export function GeneratedReportsPage() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<GeneratedReport | null>(null)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [deletingMultiple, setDeletingMultiple] = useState(false)
 
   const fetch = async (p: number) => {
+    setSelectedIds(new Set())
     setLoading(true)
     try {
       const { data: res } = await generatedReportsApi.list({ page: p, page_size: 15 })
@@ -34,6 +37,23 @@ export function GeneratedReportsPage() {
 
   useEffect(() => { fetch(page) }, [page])
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === data.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(data.map(r => r.id)))
+    }
+  }
+
   const handleDelete = async (id: number) => {
     setDeleting(id)
     try {
@@ -44,7 +64,34 @@ export function GeneratedReportsPage() {
     setDeleting(null)
   }
 
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return
+    setDeletingMultiple(true)
+    const ids = Array.from(selectedIds)
+    try {
+      await generatedReportsApi.batchDelete(ids)
+      setSelectedIds(new Set())
+      if (selected && ids.includes(selected.id)) setSelected(null)
+      fetch(page)
+    } catch {}
+    setDeletingMultiple(false)
+  }
+
+  const allSelected = data.length > 0 && selectedIds.size === data.length
+
   const columns: Column<GeneratedReport>[] = [
+    { key: 'select', header: (
+      <input type="checkbox"
+        checked={allSelected}
+        onChange={toggleSelectAll}
+        className="cursor-pointer" />
+    ), render: (r: GeneratedReport) => (
+      <input type="checkbox"
+        checked={selectedIds.has(r.id)}
+        onChange={() => toggleSelect(r.id)}
+        onClick={(e) => e.stopPropagation()}
+        className="cursor-pointer" />
+    ), className: 'w-10' },
     { key: 'id', header: 'ID', render: (r: GeneratedReport) => <span className="font-mono text-xs">#{r.id}</span> },
     { key: 'query', header: 'Query', render: (r: GeneratedReport) => (
       <span className="truncate block max-w-[400px]">{r.query}</span>
@@ -75,6 +122,21 @@ export function GeneratedReportsPage() {
       </div>
 
       <div className="card overflow-hidden">
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--card-border)] bg-red-50/50 dark:bg-red-900/10">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {selectedIds.size} selected
+            </span>
+            <button
+              onClick={handleBatchDelete}
+              disabled={deletingMultiple}
+              className="flex items-center gap-1 text-sm px-3 py-1.5 rounded-md text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {deletingMultiple ? 'Deleting...' : `Delete Selected (${selectedIds.size})`}
+            </button>
+          </div>
+        )}
         <DataTable
           columns={columns}
           data={data}

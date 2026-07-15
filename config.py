@@ -9,7 +9,7 @@ load_dotenv()
 @dataclass
 class Settings:
     database_url: str = field(default_factory=lambda: os.environ["DATABASE_URL"])
-    llm_backend: str = field(default_factory=lambda: os.getenv("LLM_BACKEND", "ollama"))
+    llm_backend: str = field(default_factory=lambda: os.getenv("LLM_BACKEND", "opencode"))
     ollama_model: str = field(default_factory=lambda: os.getenv("OLLAMA_MODEL", "qwen2.5:7b"))
     ollama_base_url: str = field(default_factory=lambda: os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"))
     anthropic_api_key: str = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""))

@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 import db as db_service
 from schemas.reports import ReportGenerateResponse
 from schemas.common import PaginatedResponse
 from middleware import get_current_user_optional
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[int]
 
 router = APIRouter(prefix="/generated-reports", tags=["Generated Reports History"])
 
@@ -53,3 +58,11 @@ async def delete_generated_report(report_id: int):
     r = await pool.execute("DELETE FROM generated_reports WHERE id = $1", report_id)
     if r == "DELETE 0":
         raise HTTPException(404, "Generated report not found")
+
+
+@router.post("/batch-delete", status_code=204)
+async def batch_delete_generated_reports(body: BatchDeleteRequest):
+    pool = await db_service.get_pool()
+    if not body.ids:
+        raise HTTPException(400, "No IDs provided")
+    await pool.execute("DELETE FROM generated_reports WHERE id = ANY($1)", body.ids)

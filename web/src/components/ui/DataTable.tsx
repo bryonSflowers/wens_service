@@ -4,7 +4,7 @@ import { TableSkeleton } from './Skeleton'
 
 export interface Column<T> {
   key: string
-  header: string
+  header: ReactNode
   render?: (item: T) => ReactNode
   className?: string
   align?: 'left' | 'right' | 'center'

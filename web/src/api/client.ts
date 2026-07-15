@@ -132,6 +132,8 @@ export const generatedReportsApi = {
     client.get(`/generated-reports/${id}`),
   delete: (id: number) =>
     client.delete(`/generated-reports/${id}`),
+  batchDelete: (ids: number[]) =>
+    client.post('/generated-reports/batch-delete', { ids }),
 }
 
 // ===== Export API =====
